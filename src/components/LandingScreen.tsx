@@ -139,13 +139,25 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
                   <p className="mt-1 text-sm text-muted-foreground">{status.message}</p>
                 </div>
               </div>
-              <Button 
-                onClick={onReset} 
-                variant="outline"
-                className="w-full"
-              >
-                Try Again
-              </Button>
+              {/* Show file picker on Safari/unsupported browsers instead of Try Again */}
+              {!supportsFileSystemAccess && onSelectFile ? (
+                <Button 
+                  onClick={onSelectFile} 
+                  className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                  size="lg"
+                >
+                  <FileUp className="h-5 w-5" />
+                  Select export.pdb File
+                </Button>
+              ) : (
+                <Button 
+                  onClick={onReset} 
+                  variant="outline"
+                  className="w-full"
+                >
+                  Try Again
+                </Button>
+              )}
             </div>
           )}
 
