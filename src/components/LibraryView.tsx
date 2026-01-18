@@ -3,6 +3,7 @@ import { PlaylistSidebar } from './PlaylistSidebar';
 import { TrackTable } from './TrackTable';
 import { FileBrowser } from './FileBrowser';
 import { SearchBar } from './SearchBar';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import type { RekordboxDatabase, Playlist, Track, ViewMode, SortColumn, SortDirection, FileEntry } from '@/types/rekordbox';
 
 interface LibraryViewProps {
@@ -52,62 +53,63 @@ export function LibraryView({
   const currentPlaylistName = selectedPlaylist?.name || 'All Tracks';
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <PlaylistSidebar
-        playlists={database.playlists}
-        selectedPlaylist={selectedPlaylist}
-        onSelectPlaylist={onSelectPlaylist}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        trackCount={database.tracks.length}
-        onReset={onReset}
-      />
+    <div className="h-screen bg-background">
+      <ResizablePanelGroup direction="horizontal" className="h-full">
+        <ResizablePanel defaultSize={24} minSize={16} maxSize={40} className="min-w-0">
+          <PlaylistSidebar
+            playlists={database.playlists}
+            selectedPlaylist={selectedPlaylist}
+            onSelectPlaylist={onSelectPlaylist}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            trackCount={database.tracks.length}
+            onReset={onReset}
+          />
+        </ResizablePanel>
 
-      {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
-          <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold text-foreground">
-              {viewMode === 'files' ? 'File Browser' : currentPlaylistName}
-            </h1>
-            {viewMode === 'library' && (
-              <span className="text-sm text-muted-foreground">
-                {filteredTracks.length} track{filteredTracks.length !== 1 ? 's' : ''}
-              </span>
-            )}
+        <ResizableHandle withHandle />
+
+        <ResizablePanel defaultSize={76} minSize={60} className="min-w-0">
+          <div className="flex h-full flex-col overflow-hidden">
+            <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
+              <div className="flex min-w-0 items-center gap-4">
+                <h1 className="truncate text-lg font-semibold text-foreground">
+                  {viewMode === 'files' ? 'File Browser' : currentPlaylistName}
+                </h1>
+                {viewMode === 'library' && (
+                  <span className="shrink-0 text-sm text-muted-foreground">
+                    {filteredTracks.length} track{filteredTracks.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+
+              {viewMode === 'library' && (
+                <div className="w-72 max-w-[45vw]">
+                  <SearchBar value={searchQuery} onChange={onSearchChange} />
+                </div>
+              )}
+            </header>
+
+            <main className="flex-1 overflow-hidden">
+              {viewMode === 'library' ? (
+                <TrackTable
+                  tracks={filteredTracks}
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={onSort}
+                />
+              ) : (
+                <FileBrowser
+                  entries={fileEntries}
+                  path={directoryPath}
+                  onNavigate={onNavigateToDirectory}
+                  onNavigateUp={onNavigateUp}
+                />
+              )}
+            </main>
           </div>
-          
-          {viewMode === 'library' && (
-            <div className="w-72">
-              <SearchBar 
-                value={searchQuery} 
-                onChange={onSearchChange} 
-              />
-            </div>
-          )}
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 overflow-hidden">
-          {viewMode === 'library' ? (
-            <TrackTable
-              tracks={filteredTracks}
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
-              onSort={onSort}
-            />
-          ) : (
-            <FileBrowser
-              entries={fileEntries}
-              path={directoryPath}
-              onNavigate={onNavigateToDirectory}
-              onNavigateUp={onNavigateUp}
-            />
-          )}
-        </main>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
