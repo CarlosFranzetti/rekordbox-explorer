@@ -18,35 +18,64 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
   partialMatch?: boolean;
   message?: string;
 }> {
-  // First, try the standard path: PIONEER/rekordbox/export.pdb
+  // First, try the standard path: PIONEER/rekordbox/(export.pdb | exportExt.pdb)
   try {
     const pioneerDir = await directoryHandle.getDirectoryHandle('PIONEER', { create: false });
     const rekordboxDir = await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
-    const exportPdb = await rekordboxDir.getFileHandle('export.pdb', { create: false });
-    
+
+    // Prefer export.pdb (base DB) and fall back to exportExt.pdb (extended DB)
+    try {
+      const exportPdb = await rekordboxDir.getFileHandle('export.pdb', { create: false });
+      return {
+        found: true,
+        handle: exportPdb,
+        path: 'PIONEER/rekordbox/export.pdb',
+      };
+    } catch (error) {
+      console.error('export.pdb not found in PIONEER/rekordbox:', error);
+    }
+
+    // Some filesystems vary case; try common variants.
+    const exportExtNames = ['exportExt.pdb', 'exportext.pdb'];
+    for (const name of exportExtNames) {
+      try {
+        const exportExt = await rekordboxDir.getFileHandle(name, { create: false });
+        return {
+          found: true,
+          handle: exportExt,
+          path: `PIONEER/rekordbox/${name}`,
+        };
+      } catch {
+        // continue
+      }
+    }
+
+    // rekordbox folder exists but neither DB file is present
     return {
-      found: true,
-      handle: exportPdb,
-      path: 'PIONEER/rekordbox/export.pdb'
+      found: false,
+      partialMatch: true,
+      message:
+        'Rekordbox folder found but export.pdb/exportExt.pdb is missing. The USB may not have been exported from Rekordbox properly.',
     };
   } catch (error) {
     // Standard path not found, check for partial structure
-    console.error('Standard path (PIONEER/rekordbox/export.pdb) not found:', error);
+    console.error('Standard path (PIONEER/rekordbox) not found:', error);
   }
 
   // Check if PIONEER folder exists
   try {
     const pioneerDir = await directoryHandle.getDirectoryHandle('PIONEER', { create: false });
-    
+
     // Check for rekordbox folder
     try {
       await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
-      
-      // rekordbox folder exists but no export.pdb
+
+      // rekordbox folder exists but no export DB
       return {
         found: false,
         partialMatch: true,
-        message: 'Rekordbox folder found but export.pdb is missing. The USB may not have been exported from Rekordbox properly.'
+        message:
+          'Rekordbox folder found but export.pdb/exportExt.pdb is missing. The USB may not have been exported from Rekordbox properly.',
       };
     } catch (error) {
       // PIONEER exists but no rekordbox folder
@@ -54,7 +83,7 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
       return {
         found: false,
         partialMatch: true,
-        message: 'PIONEER folder found but no rekordbox directory. Would you like to do a full scan?'
+        message: 'PIONEER folder found but no rekordbox directory. Would you like to do a full scan?',
       };
     }
   } catch (error) {
@@ -71,7 +100,7 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
         return {
           found: false,
           partialMatch: false,
-          message: `This appears to be a ${folder} USB, not a Rekordbox USB.`
+          message: `This appears to be a ${folder} USB, not a Rekordbox USB.`,
         };
       }
     } catch (error) {
@@ -83,7 +112,7 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
   return {
     found: false,
     partialMatch: false,
-    message: 'Non-Rekordbox USB detected. No PIONEER/rekordbox folder structure found.'
+    message: 'Non-Rekordbox USB detected. No PIONEER/rekordbox folder structure found.',
   };
 }
 
@@ -99,7 +128,8 @@ export async function fullScanForDatabase(directoryHandle: FileSystemDirectoryHa
   }> {
     const entries = dir.entries();
     for await (const [name, handle] of entries) {
-      if (handle.kind === 'file' && name === 'export.pdb') {
+      const lower = name.toLowerCase();
+      if (handle.kind === 'file' && (lower === 'export.pdb' || lower === 'exportext.pdb')) {
         return {
           found: true,
           handle: handle as FileSystemFileHandle,

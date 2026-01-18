@@ -16,7 +16,7 @@ interface SettingsPanelProps {
 
 const schemes: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
   { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'light', label: 'Light (Sepia)', icon: Sun },
   { value: 'midnight', label: 'Midnight', icon: Monitor },
 ];
 
@@ -34,7 +34,7 @@ export function SettingsPanel({
       if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')) {
         e.preventDefault();
         onFontSizeChange(Math.min(fontSize + 1, 20));
-      } else if ((e.metaKey || e.ctrlKey) && e.key === '-') {
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === '-' || e.key === '_')) {
         e.preventDefault();
         onFontSizeChange(Math.max(fontSize - 1, 10));
       }
@@ -66,26 +66,26 @@ export function SettingsPanel({
         {/* Color Scheme */}
         <div className="space-y-2">
           <Label className="text-sm text-muted-foreground">Color Scheme</Label>
-          <div className="flex gap-2">
-            {schemes.map((scheme) => {
-              const Icon = scheme.icon;
-              return (
-                <Button
-                  key={scheme.value}
-                  variant={colorScheme === scheme.value ? 'default' : 'outline'}
-                  size="sm"
-                  className={cn(
-                    'flex-1 gap-1',
-                    colorScheme === scheme.value && 'bg-primary text-primary-foreground'
-                  )}
-                  onClick={() => onColorSchemeChange(scheme.value)}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span className="text-xs">{scheme.label}</span>
-                </Button>
-              );
-            })}
-          </div>
+            <div className="flex gap-2">
+              {schemes.map((scheme) => {
+                const Icon = scheme.icon;
+                const isActive = colorScheme === scheme.value;
+
+                return (
+                  <Button
+                    key={scheme.value}
+                    variant={isActive ? 'default' : 'outline'}
+                    size="icon"
+                    title={scheme.label}
+                    aria-label={scheme.label}
+                    className={cn('h-9 w-9', isActive && 'bg-primary text-primary-foreground')}
+                    onClick={() => onColorSchemeChange(scheme.value)}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </Button>
+                );
+              })}
+            </div>
         </div>
 
         {/* Font Size */}
