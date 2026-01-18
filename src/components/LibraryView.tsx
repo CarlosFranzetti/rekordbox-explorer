@@ -4,6 +4,7 @@ import { TrackTable } from './TrackTable';
 import { FileBrowser } from './FileBrowser';
 import { SearchBar } from './SearchBar';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useSettings } from '@/hooks/useSettings';
 import type { RekordboxDatabase, Playlist, Track, ViewMode, SortColumn, SortDirection, FileEntry } from '@/types/rekordbox';
 
 interface LibraryViewProps {
@@ -42,6 +43,7 @@ export function LibraryView({
   onReset
 }: LibraryViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('library');
+  const { colorScheme, fontSize, setColorScheme, setFontSize } = useSettings();
 
   // Load file entries when switching to files mode
   useEffect(() => {
@@ -64,6 +66,10 @@ export function LibraryView({
             onViewModeChange={setViewMode}
             trackCount={database.tracks.length}
             onReset={onReset}
+            colorScheme={colorScheme}
+            onColorSchemeChange={setColorScheme}
+            fontSize={fontSize}
+            onFontSizeChange={setFontSize}
           />
         </ResizablePanel>
 

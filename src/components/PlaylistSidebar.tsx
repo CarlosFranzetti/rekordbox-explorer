@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Playlist, ViewMode } from '@/types/rekordbox';
+import { SettingsPanel, type ColorScheme } from './SettingsPanel';
 
 interface PlaylistSidebarProps {
   playlists: Playlist[];
@@ -13,6 +14,10 @@ interface PlaylistSidebarProps {
   onViewModeChange: (mode: ViewMode) => void;
   trackCount: number;
   onReset: () => void;
+  colorScheme: ColorScheme;
+  onColorSchemeChange: (scheme: ColorScheme) => void;
+  fontSize: number;
+  onFontSizeChange: (size: number) => void;
 }
 
 interface PlaylistItemProps {
@@ -96,7 +101,11 @@ export function PlaylistSidebar({
   viewMode,
   onViewModeChange,
   trackCount,
-  onReset
+  onReset,
+  colorScheme,
+  onColorSchemeChange,
+  fontSize,
+  onFontSizeChange
 }: PlaylistSidebarProps) {
   return (
     <div className="flex h-full w-full min-w-0 flex-col border-r border-sidebar-border bg-sidebar">
@@ -169,6 +178,16 @@ export function PlaylistSidebar({
           )}
         </div>
       </ScrollArea>
+
+      {/* Settings button in bottom left */}
+      <div className="border-t border-sidebar-border p-2">
+        <SettingsPanel
+          colorScheme={colorScheme}
+          onColorSchemeChange={onColorSchemeChange}
+          fontSize={fontSize}
+          onFontSizeChange={onFontSizeChange}
+        />
+      </div>
     </div>
   );
 }

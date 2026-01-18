@@ -6,6 +6,8 @@
 
 @layer base {
   :root {
+    --table-font-size: 14px;
+
     --background: 220 15% 8%;
     --foreground: 220 10% 92%;
 
@@ -16,7 +18,7 @@
     --popover-foreground: 220 10% 92%;
 
     --primary: 200 100% 50%;
-    --primary-foreground: 220 15% 8%;
+    --primary-foreground: 220 10% 98%;
 
     --secondary: 220 15% 15%;
     --secondary-foreground: 220 10% 85%;
@@ -58,43 +60,82 @@
     --row-selected: 200 50% 20%;
   }
 
-  .dark {
+  /* Dark theme (default) */
+  .theme-dark {
     --background: 220 15% 8%;
     --foreground: 220 10% 92%;
-
     --card: 220 15% 10%;
     --card-foreground: 220 10% 92%;
-
     --popover: 220 15% 12%;
     --popover-foreground: 220 10% 92%;
-
     --primary: 200 100% 50%;
-    --primary-foreground: 220 15% 8%;
-
+    --primary-foreground: 220 10% 98%;
     --secondary: 220 15% 15%;
     --secondary-foreground: 220 10% 85%;
-
     --muted: 220 15% 15%;
     --muted-foreground: 220 10% 55%;
-
     --accent: 200 80% 45%;
     --accent-foreground: 220 10% 92%;
-
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 220 10% 92%;
-
     --border: 220 15% 18%;
     --input: 220 15% 15%;
-    --ring: 200 100% 50%;
-
     --sidebar-background: 220 15% 6%;
     --sidebar-foreground: 220 10% 85%;
-    --sidebar-primary: 200 100% 50%;
-    --sidebar-primary-foreground: 220 15% 8%;
     --sidebar-accent: 220 15% 12%;
     --sidebar-accent-foreground: 220 10% 92%;
     --sidebar-border: 220 15% 15%;
-    --sidebar-ring: 200 100% 50%;
+    --row-hover: 220 15% 12%;
+  }
+
+  /* Light theme */
+  .theme-light {
+    --background: 0 0% 98%;
+    --foreground: 220 15% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+    --primary: 200 100% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 10% 92%;
+    --secondary-foreground: 220 15% 25%;
+    --muted: 220 10% 94%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 200 80% 50%;
+    --accent-foreground: 0 0% 100%;
+    --border: 220 10% 88%;
+    --input: 220 10% 92%;
+    --sidebar-background: 220 10% 96%;
+    --sidebar-foreground: 220 15% 25%;
+    --sidebar-accent: 220 10% 90%;
+    --sidebar-accent-foreground: 220 15% 15%;
+    --sidebar-border: 220 10% 88%;
+    --row-hover: 220 10% 94%;
+  }
+
+  /* Midnight theme (deeper dark) */
+  .theme-midnight {
+    --background: 230 20% 5%;
+    --foreground: 220 15% 88%;
+    --card: 230 20% 7%;
+    --card-foreground: 220 15% 88%;
+    --popover: 230 20% 9%;
+    --popover-foreground: 220 15% 88%;
+    --primary: 260 80% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 230 20% 12%;
+    --secondary-foreground: 220 15% 75%;
+    --muted: 230 20% 12%;
+    --muted-foreground: 220 15% 50%;
+    --accent: 280 70% 55%;
+    --accent-foreground: 220 15% 92%;
+    --border: 230 20% 14%;
+    --input: 230 20% 12%;
+    --sidebar-background: 230 20% 4%;
+    --sidebar-foreground: 220 15% 75%;
+    --sidebar-accent: 230 20% 10%;
+    --sidebar-accent-foreground: 220 15% 88%;
+    --sidebar-border: 230 20% 12%;
+    --row-hover: 230 20% 10%;
   }
 }
 
