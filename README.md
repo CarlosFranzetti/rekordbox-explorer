@@ -1,6 +1,6 @@
-# RekordboxY
+# RekordboxViewer
 
-RekordboxY is a **web-based tool** for inspecting Rekordbox USB drives directly in the browser.
+RekordboxViewer is a **web-based tool** for inspecting Rekordbox USB drives directly in the browser.
 
 It lets DJs and music collectors **open a Rekordbox-exported USB**, read the Rekordbox database (`export.pdb` / `exportExt.pdb`), browse tracks and search without Rekordbox installed.
 
