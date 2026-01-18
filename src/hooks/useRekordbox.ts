@@ -45,46 +45,94 @@ export function useRekordbox() {
       setCurrentDirectory(handle);
       setDirectoryPath([handle.name]);
       
-      // Try to find Rekordbox database
+      // Try to find Rekordbox database (export.pdb preferred; exportExt.pdb fallback)
       const result = await findRekordboxDatabase(handle);
-      
+
       if (result.found && result.handle) {
         try {
-          const database = await parseRekordboxDatabase(result.handle);
-          setStatus({ type: 'valid', database });
-          
+          // iOS/small screens: keep it lightweight (skip exportExt merge)
+          const isSmallScreen = window.matchMedia('(max-width: 767px)').matches;
+
+          const baseDb = await parseRekordboxDatabase(result.handle);
+
+          // If we loaded export.pdb from the standard location, try to also load exportExt.pdb
+          // to fill in fields like BPM/Genre when they are missing in the base DB.
+          let mergedDb = baseDb;
+
+          if (!isSmallScreen) {
+            try {
+              const pioneerDir = await handle.getDirectoryHandle('PIONEER', { create: false });
+              const rekordboxDir = await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
+
+              // Try common filename variants
+              const extNames = ['exportExt.pdb', 'exportext.pdb'];
+              let extHandle: FileSystemFileHandle | null = null;
+              for (const n of extNames) {
+                try {
+                  extHandle = await rekordboxDir.getFileHandle(n, { create: false });
+                  break;
+                } catch {
+                  // continue
+                }
+              }
+
+              if (extHandle) {
+                const extDb = await parseRekordboxDatabase(extHandle);
+                const extById = new Map(extDb.tracks.map((t) => [t.id, t] as const));
+
+                mergedDb = {
+                  ...baseDb,
+                  tracks: baseDb.tracks.map((t) => {
+                    const ext = extById.get(t.id);
+                    if (!ext) return t;
+                    return {
+                      ...t,
+                      bpm: t.bpm > 0 ? t.bpm : ext.bpm,
+                      genre: t.genre ? t.genre : ext.genre,
+                    };
+                  }),
+                };
+              }
+            } catch (e) {
+              // Non-fatal; proceed with base DB
+              console.warn('Optional exportExt.pdb merge failed:', e);
+            }
+          }
+
+          setStatus({ type: 'valid', database: mergedDb });
+
           // Show success toast
           toast({
-            title: "Database Loaded",
-            description: `Successfully loaded ${database.tracks.length} tracks from Rekordbox database.`,
-            variant: "default",
+            title: 'Database Loaded',
+            description: `Successfully loaded ${mergedDb.tracks.length} tracks from Rekordbox database.`,
+            variant: 'default',
           });
         } catch (parseError) {
           console.error('Parse error:', parseError);
-          
+
           const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown error';
-          
+
           // Show error toast for user feedback
           toast({
-            title: "Parse Error",
+            title: 'Parse Error',
             description: errorMessage,
-            variant: "destructive",
+            variant: 'destructive',
           });
-          
+
           setStatus({
             type: 'error',
-            message: `Failed to parse Rekordbox database: ${errorMessage}`
+            message: `Failed to parse Rekordbox database: ${errorMessage}`,
           });
         }
       } else if (result.partialMatch) {
         setStatus({
           type: 'partial',
-          message: result.message || 'Partial Rekordbox structure found.'
+          message: result.message || 'Partial Rekordbox structure found.',
         });
       } else {
         setStatus({
           type: 'invalid',
-          message: result.message || 'Non-Rekordbox USB detected.'
+          message: result.message || 'Non-Rekordbox USB detected.',
         });
       }
     } catch (error) {
@@ -117,26 +165,33 @@ export function useRekordbox() {
     const fileArray = Array.from(files);
     const norm = (name: string) => name.toLowerCase();
 
-    // iOS/Safari can return slightly different names; be flexible.
+    // On small screens (iOS/mobile), keep parsing lightweight.
+    const isSmallScreen = window.matchMedia('(max-width: 767px)').matches;
+
     const pdbCandidates = fileArray.filter((f) => norm(f.name).endsWith('.pdb') || norm(f.name).includes('.pdb'));
-    const preferredNames = new Set(['export.pdb', 'exportext.pdb']);
 
-    const pdbFile =
-      pdbCandidates.find((f) => preferredNames.has(norm(f.name))) ||
-      pdbCandidates.find((f) => norm(f.name).includes('export')) ||
-      pdbCandidates[0] ||
-      // As a last resort, try the single selected file (some iOS picks can drop extensions)
-      (fileArray.length === 1 ? fileArray[0] : null);
+    const exportFile =
+      pdbCandidates.find((f) => norm(f.name) === 'export.pdb') ||
+      pdbCandidates.find((f) => norm(f.name).includes('export') && !norm(f.name).includes('ext')) ||
+      null;
 
-    if (!pdbFile) {
+    const exportExtFile =
+      pdbCandidates.find((f) => norm(f.name) === 'exportext.pdb') ||
+      pdbCandidates.find((f) => norm(f.name).includes('export') && norm(f.name).includes('ext')) ||
+      null;
+
+    const primaryFile = exportFile || exportExtFile || pdbCandidates[0] || (fileArray.length === 1 ? fileArray[0] : null);
+
+    if (!primaryFile) {
       setStatus({
         type: 'error',
-        message: 'No export.pdb file found. Please select the Rekordbox database file (export.pdb) or a folder containing it.'
+        message:
+          'No export.pdb file found. Please select the Rekordbox database file (export.pdb) or a folder containing it.',
       });
       toast({
-        title: "Database Not Found",
-        description: "Please select export.pdb or a folder containing it.",
-        variant: "destructive",
+        title: 'Database Not Found',
+        description: 'Please select export.pdb or exportExt.pdb (or a folder containing them).',
+        variant: 'destructive',
       });
       return;
     }
@@ -144,27 +199,49 @@ export function useRekordbox() {
     setStatus({ type: 'loading' });
 
     try {
-      const database = await parseRekordboxDatabaseFromFile(pdbFile);
-      setStatus({ type: 'valid', database });
-      
+      const baseDb = await parseRekordboxDatabaseFromFile(primaryFile);
+
+      // Desktop/large screens: if both are available, merge exportExt into export (for BPM/Genre completeness).
+      let mergedDb = baseDb;
+
+      if (!isSmallScreen && exportFile && exportExtFile) {
+        const extDb = await parseRekordboxDatabaseFromFile(exportExtFile);
+        const extById = new Map(extDb.tracks.map((t) => [t.id, t] as const));
+
+        mergedDb = {
+          ...baseDb,
+          tracks: baseDb.tracks.map((t) => {
+            const ext = extById.get(t.id);
+            if (!ext) return t;
+            return {
+              ...t,
+              bpm: t.bpm > 0 ? t.bpm : ext.bpm,
+              genre: t.genre ? t.genre : ext.genre,
+            };
+          }),
+        };
+      }
+
+      setStatus({ type: 'valid', database: mergedDb });
+
       toast({
-        title: "Database Loaded",
-        description: `Successfully loaded ${database.tracks.length} tracks from Rekordbox database.`,
-        variant: "default",
+        title: 'Database Loaded',
+        description: `Successfully loaded ${mergedDb.tracks.length} tracks from Rekordbox database.`,
+        variant: 'default',
       });
     } catch (parseError) {
       console.error('Parse error:', parseError);
       const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown error';
-      
+
       toast({
-        title: "Parse Error",
+        title: 'Parse Error',
         description: errorMessage,
-        variant: "destructive",
+        variant: 'destructive',
       });
-      
+
       setStatus({
         type: 'error',
-        message: `Failed to parse Rekordbox database: ${errorMessage}`
+        message: `Failed to parse Rekordbox database: ${errorMessage}`,
       });
     }
 
@@ -317,14 +394,14 @@ export function useRekordbox() {
         case 'album':
           comparison = a.album.localeCompare(b.album);
           break;
+        case 'genre':
+          comparison = a.genre.localeCompare(b.genre);
+          break;
         case 'duration':
           comparison = a.duration - b.duration;
           break;
         case 'bpm':
           comparison = a.bpm - b.bpm;
-          break;
-        case 'key':
-          comparison = a.key.localeCompare(b.key);
           break;
       }
       
