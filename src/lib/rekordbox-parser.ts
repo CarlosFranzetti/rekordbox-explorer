@@ -231,12 +231,12 @@ export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): 
   const lenPage = dataView.getUint32(4, true);
   const numTables = dataView.getUint32(8, true);
   
-  // Security: Validate numTables count
-  if (numTables < 0 || numTables > 1000) {
+  // Security: Validate numTables count (getUint32 is always >= 0)
+  if (numTables > 1000) {
     throw new Error(`Invalid number of tables: ${numTables}`);
   }
   
-  // Security: Validate lenPage
+  // Security: Validate lenPage (getUint32 is always >= 0)
   if (lenPage < 512 || lenPage > 1024 * 1024) {
     throw new Error(`Invalid page length: ${lenPage}`);
   }
@@ -294,7 +294,7 @@ export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): 
   for (const table of tables) {
     if (table.type === PAGE_TYPE_PLAYLIST_ENTRIES) {
       parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number) => {
-        parsePlaylistEntryRow(dataView, rowBase, playlistEntries);
+        parsePlaylistEntryRow(dataView, rowBase, bufferLength, playlistEntries);
       });
     }
   }
@@ -364,8 +364,8 @@ function parseTablePages(
   let pageIndex = table.firstPage;
   const visitedPages = new Set<number>();
   
-  // Security: Validate initial page index
-  if (pageIndex < 0 || pageIndex * lenPage >= bufferLength) {
+  // Security: Validate initial page index (getUint32 is always >= 0)
+  if (pageIndex * lenPage >= bufferLength) {
     console.error(`parseTablePages: invalid initial page index ${pageIndex}`);
     return;
   }
@@ -375,7 +375,7 @@ function parseTablePages(
     const pageOffset = pageIndex * lenPage;
     
     // Security: Validate page offset and ensure full page is within bounds
-    if (pageOffset < 0 || pageOffset + lenPage > bufferLength) {
+    if (pageOffset + lenPage > bufferLength) {
       console.error(`parseTablePages: page ${pageIndex} offset ${pageOffset} out of bounds`);
       break;
     }
@@ -401,11 +401,11 @@ function parseTablePages(
     
     // Read the packed bits for row counts
     const packedRowInfo = dataView.getUint32(pageOffset + 24, true);
-    const numRowOffsets = packedRowInfo & 0x1FFF; // Lower 13 bits
+    const numRowOffsets = packedRowInfo & 0x1FFF; // Lower 13 bits (always >= 0)
     const pageFlags = dataView.getUint8(pageOffset + 27);
     
     // Security: Validate numRowOffsets is reasonable
-    if (numRowOffsets < 0 || numRowOffsets > 2000) {
+    if (numRowOffsets > 2000) {
       console.error(`parseTablePages: invalid numRowOffsets ${numRowOffsets} at page ${pageIndex}`);
       break;
     }
@@ -467,8 +467,8 @@ function parseTablePages(
     }
     
     // Move to next page
-    // Security: Validate nextPageIndex
-    if (nextPageIndex === 0 || nextPageIndex < 0 || nextPageIndex >= bufferLength / lenPage) {
+    // Security: Validate nextPageIndex (getUint32 is always >= 0)
+    if (nextPageIndex === 0 || nextPageIndex >= bufferLength / lenPage) {
       break;
     }
     if (pageIndex === table.lastPage) break;
@@ -512,8 +512,8 @@ function parseSimpleRow(
       const subtype = dataView.getUint16(rowBase, true);
       const id = dataView.getUint32(rowBase + 4, true);
       
-      // Security: Validate ID is reasonable
-      if (id < 0 || id > 0xFFFFFFFF) {
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
         console.error(`parseSimpleRow: invalid artist ID ${id}`);
         return;
       }
@@ -530,8 +530,8 @@ function parseSimpleRow(
         nameOffset = dataView.getUint8(rowBase + 9);
       }
       
-      // Security: Validate nameOffset is within reasonable range
-      if (nameOffset < 0 || nameOffset > 10000) {
+      // Security: Validate nameOffset is within reasonable range (getUint16/getUint8 are always >= 0)
+      if (nameOffset > 10000) {
         console.error(`parseSimpleRow: invalid name offset ${nameOffset} for artist`);
         return;
       }
@@ -551,8 +551,8 @@ function parseSimpleRow(
       const subtype = dataView.getUint16(rowBase, true);
       const id = dataView.getUint32(rowBase + 12, true);
       
-      // Security: Validate ID is reasonable
-      if (id < 0 || id > 0xFFFFFFFF) {
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
         console.error(`parseSimpleRow: invalid album ID ${id}`);
         return;
       }
@@ -569,8 +569,8 @@ function parseSimpleRow(
         nameOffset = dataView.getUint8(rowBase + 17);
       }
       
-      // Security: Validate nameOffset is within reasonable range
-      if (nameOffset < 0 || nameOffset > 10000) {
+      // Security: Validate nameOffset is within reasonable range (getUint16/getUint8 are always >= 0)
+      if (nameOffset > 10000) {
         console.error(`parseSimpleRow: invalid name offset ${nameOffset} for album`);
         return;
       }
@@ -588,8 +588,8 @@ function parseSimpleRow(
       
       const id = dataView.getUint32(rowBase, true);
       
-      // Security: Validate ID is reasonable
-      if (id < 0 || id > 0xFFFFFFFF) {
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
         console.error(`parseSimpleRow: invalid genre ID ${id}`);
         return;
       }
@@ -607,8 +607,8 @@ function parseSimpleRow(
       
       const id = dataView.getUint32(rowBase, true);
       
-      // Security: Validate ID is reasonable
-      if (id < 0 || id > 0xFFFFFFFF) {
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
         console.error(`parseSimpleRow: invalid key ID ${id}`);
         return;
       }
@@ -626,8 +626,8 @@ function parseSimpleRow(
       
       const id = dataView.getUint32(rowBase, true);
       
-      // Security: Validate ID is reasonable
-      if (id < 0 || id > 0xFFFFFFFF) {
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
         console.error(`parseSimpleRow: invalid label ID ${id}`);
         return;
       }
@@ -657,13 +657,9 @@ function parsePlaylistTreeRow(
   const id = dataView.getUint32(rowBase + 12, true);
   const rawIsFolder = dataView.getUint32(rowBase + 16, true);
   
-  // Security: Validate IDs are reasonable
-  if (id < 0 || id > 0xFFFFFFFF) {
+  // Security: Validate IDs are reasonable (getUint32 always returns 0-0xFFFFFFFF)
+  if (id === 0) {
     console.error(`parsePlaylistTreeRow: invalid playlist ID ${id}`);
-    return;
-  }
-  if (parentId < 0 || parentId > 0xFFFFFFFF) {
-    console.error(`parsePlaylistTreeRow: invalid parent ID ${parentId}`);
     return;
   }
   
@@ -696,17 +692,13 @@ function parsePlaylistEntryRow(
   const trackId = dataView.getUint32(rowBase + 4, true);
   const playlistId = dataView.getUint32(rowBase + 8, true);
   
-  // Security: Validate IDs are reasonable and positive
-  if (playlistId < 0 || playlistId > 0xFFFFFFFF || playlistId === 0) {
+  // Security: Validate IDs are reasonable and positive (getUint32 always returns 0-0xFFFFFFFF)
+  if (playlistId === 0) {
     console.error(`parsePlaylistEntryRow: invalid playlist ID ${playlistId}`);
     return;
   }
-  if (trackId < 0 || trackId > 0xFFFFFFFF || trackId === 0) {
+  if (trackId === 0) {
     console.error(`parsePlaylistEntryRow: invalid track ID ${trackId}`);
-    return;
-  }
-  if (entryIndex < 0 || entryIndex > 0xFFFFFFFF) {
-    console.error(`parsePlaylistEntryRow: invalid entry index ${entryIndex}`);
     return;
   }
   
@@ -779,32 +771,32 @@ function parseTrackRow(
   const bitrate = dataView.getUint32(rowBase + 0x30, true);
   const keyId = dataView.getUint32(rowBase + 0x20, true);
   
-  // Security: Validate IDs and values are reasonable
-  if (id < 0 || id > 0xFFFFFFFF || id === 0) {
+  // Security: Validate IDs and values are reasonable (getUint32 always returns 0-0xFFFFFFFF)
+  if (id === 0) {
     console.error(`parseTrackRow: invalid track ID ${id}`);
     return;
   }
   
   // Security: Validate tempo is reasonable (0-500 BPM range, stored as BPM * 100)
-  if (tempo < 0 || tempo > 50000) {
+  if (tempo > 50000) {
     console.error(`parseTrackRow: invalid tempo ${tempo} for track ${id}`);
     return;
   }
   
-  // Security: Validate duration is reasonable (0-10 hours in seconds)
-  if (duration < 0 || duration > 36000) {
+  // Security: Validate duration is reasonable (0-10 hours in seconds, getUint16 always >= 0)
+  if (duration > 36000) {
     console.error(`parseTrackRow: invalid duration ${duration} for track ${id}`);
     return;
   }
   
-  // Security: Validate rating (0-5 range typical for Rekordbox)
-  if (rating < 0 || rating > 255) {
+  // Security: Validate rating (0-5 range typical for Rekordbox, getUint8 always >= 0)
+  if (rating > 255) {
     console.error(`parseTrackRow: invalid rating ${rating} for track ${id}`);
     return;
   }
   
-  // Security: Validate bitrate is reasonable (0-10000 kbps)
-  if (bitrate < 0 || bitrate > 10000) {
+  // Security: Validate bitrate is reasonable (0-10000 kbps, getUint32 always >= 0)
+  if (bitrate > 10000) {
     console.error(`parseTrackRow: invalid bitrate ${bitrate} for track ${id}`);
     return;
   }
@@ -814,8 +806,8 @@ function parseTrackRow(
   for (let i = 0; i < 21; i++) {
     const offset = dataView.getUint16(rowBase + 0x5E + (i * 2), true);
     
-    // Security: Validate offset is within reasonable range
-    if (offset < 0 || offset > 10000) {
+    // Security: Validate offset is within reasonable range (getUint16 returns 0-65535)
+    if (offset > 10000) {
       console.error(`parseTrackRow: invalid string offset ${offset} at index ${i} for track ${id}`);
       ofsStrings.push(0);
     } else {
