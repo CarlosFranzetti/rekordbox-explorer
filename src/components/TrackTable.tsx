@@ -1,9 +1,11 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatDuration, formatBpm } from '@/lib/rekordbox-parser';
 import type { Track, SortColumn, SortDirection } from '@/types/rekordbox';
 import { useIsMobile } from '@/hooks/use-mobile';
+
+const COLUMN_WIDTHS_KEY = 'rekordbox-column-widths';
 
 interface TrackTableProps {
   tracks: Track[];
@@ -36,6 +38,25 @@ const MOBILE_COLUMNS: ColumnConfig[] = [
   { key: 'album', label: 'Album', defaultWidth: 120, minWidth: 80 },
 ];
 
+function getStoredWidths(): Record<string, number> | null {
+  try {
+    const stored = localStorage.getItem(COLUMN_WIDTHS_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return null;
+}
+
+function getDefaultWidths(): Record<string, number> {
+  return DESKTOP_COLUMNS.reduce(
+    (acc, col) => ({ ...acc, [col.key]: col.defaultWidth }),
+    {} as Record<string, number>
+  );
+}
+
 interface ResizeHandleProps {
   onResizeStart: (e: React.MouseEvent) => void;
 }
@@ -56,13 +77,19 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackT
 
   const activeColumns = useMemo(() => (isMobile ? MOBILE_COLUMNS : DESKTOP_COLUMNS), [isMobile]);
 
-  // Store widths for all possible columns (desktop set)
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() =>
-    DESKTOP_COLUMNS.reduce(
-      (acc, col) => ({ ...acc, [col.key]: col.defaultWidth }),
-      {} as Record<string, number>
-    )
+  // Load widths from localStorage on mount, fallback to defaults
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(
+    () => getStoredWidths() ?? getDefaultWidths()
   );
+
+  // Persist widths to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));
+    } catch {
+      // ignore storage errors
+    }
+  }, [columnWidths]);
 
   const draggingRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
 
