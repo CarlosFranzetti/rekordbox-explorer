@@ -78,11 +78,12 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackT
       };
 
       const onMouseMove = (moveEvent: MouseEvent) => {
-        if (!draggingRef.current) return;
-        const col = DESKTOP_COLUMNS.find((c) => c.key === draggingRef.current!.key);
-        const delta = moveEvent.clientX - draggingRef.current.startX;
-        const newWidth = Math.max(col?.minWidth ?? 60, draggingRef.current.startWidth + delta);
-        setColumnWidths((prev) => ({ ...prev, [draggingRef.current!.key]: newWidth }));
+        const current = draggingRef.current;
+        if (!current) return;
+        const col = DESKTOP_COLUMNS.find((c) => c.key === current.key);
+        const delta = moveEvent.clientX - current.startX;
+        const newWidth = Math.max(col?.minWidth ?? 60, current.startWidth + delta);
+        setColumnWidths((prev) => ({ ...prev, [current.key]: newWidth }));
       };
 
       const onMouseUp = () => {
