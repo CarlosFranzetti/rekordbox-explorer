@@ -19,16 +19,13 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      {/* Hidden file input for Safari/fallback */}
+      {/* Hidden file input for Safari/iOS fallback */}
       {fileInputRef && onFileInput && (
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdb"
           onChange={onFileInput}
           className="hidden"
-          // webkitdirectory works on Safari desktop
-          {...(!supportsFileSystemAccess ? { multiple: true } : {})}
         />
       )}
       
@@ -61,9 +58,10 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
             <div className="space-y-3">
               <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3">
                 <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning" />
-                <p className="text-sm text-muted-foreground">
-                  Your browser doesn't support folder selection. Please select the <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">export.pdb</code> file directly.
-                </p>
+                <div className="text-sm text-muted-foreground">
+                  <p className="mb-1">Your browser doesn't support folder selection.</p>
+                  <p>Navigate to your USB in the Files app, find <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">PIONEER/rekordbox/</code> and select <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">export.pdb</code></p>
+                </div>
               </div>
               <Button 
                 onClick={onSelectFile} 
