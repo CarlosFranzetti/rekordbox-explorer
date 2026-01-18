@@ -1,14 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { RekordboxDatabase, USBStatus, FileEntry, Playlist, Track, SortColumn, SortDirection } from '@/types/rekordbox';
 import { 
   findRekordboxDatabase, 
   fullScanForDatabase, 
-  parseRekordboxDatabase, 
+  parseRekordboxDatabase,
+  parseRekordboxDatabaseFromFile,
   listDirectory 
 } from '@/lib/rekordbox-parser';
 import { useToast } from '@/hooks/use-toast';
 
+// Check if File System Access API is supported
+export function isFileSystemAccessSupported(): boolean {
+  return 'showDirectoryPicker' in window;
+}
+
 export function useRekordbox() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<USBStatus>({ type: 'idle' });
   const [rootHandle, setRootHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [currentDirectory, setCurrentDirectory] = useState<FileSystemDirectoryHandle | null>(null);
@@ -102,6 +109,70 @@ export function useRekordbox() {
       });
     }
   }, [toast]);
+
+  const handleFileInput = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    // Find export.pdb file
+    let pdbFile: File | null = null;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.name === 'export.pdb' || file.name === 'exportExt.pdb') {
+        pdbFile = file;
+        break;
+      }
+    }
+
+    if (!pdbFile) {
+      setStatus({
+        type: 'error',
+        message: 'No export.pdb file found. Please select the Rekordbox database file (export.pdb) or a folder containing it.'
+      });
+      toast({
+        title: "Database Not Found",
+        description: "Please select export.pdb or a folder containing it.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setStatus({ type: 'loading' });
+
+    try {
+      const database = await parseRekordboxDatabaseFromFile(pdbFile);
+      setStatus({ type: 'valid', database });
+      
+      toast({
+        title: "Database Loaded",
+        description: `Successfully loaded ${database.tracks.length} tracks from Rekordbox database.`,
+        variant: "default",
+      });
+    } catch (parseError) {
+      console.error('Parse error:', parseError);
+      const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown error';
+      
+      toast({
+        title: "Parse Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      setStatus({
+        type: 'error',
+        message: `Failed to parse Rekordbox database: ${errorMessage}`
+      });
+    }
+
+    // Reset file input
+    if (event.target) {
+      event.target.value = '';
+    }
+  }, [toast]);
+
+  const triggerFileInput = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
 
   const performFullScan = useCallback(async () => {
     if (!rootHandle) return;
@@ -287,6 +358,9 @@ export function useRekordbox() {
     setSelectedPlaylist,
     setSearchQuery,
     getFilteredTracks,
-    handleSort
+    handleSort,
+    fileInputRef,
+    handleFileInput,
+    triggerFileInput
   };
 }

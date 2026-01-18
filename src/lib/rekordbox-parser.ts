@@ -205,6 +205,10 @@ interface TableInfo {
 
 export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): Promise<RekordboxDatabase> {
   const file = await fileHandle.getFile();
+  return parseRekordboxDatabaseFromFile(file);
+}
+
+export async function parseRekordboxDatabaseFromFile(file: File): Promise<RekordboxDatabase> {
   const fileSize = file.size;
   
   // Security: File size validation (500MB default max)
