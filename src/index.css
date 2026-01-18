@@ -86,30 +86,30 @@
     --row-hover: 220 15% 12%;
   }
 
-  /* Light theme */
+  /* Light theme (warm sepia) */
   .theme-light {
-    --background: 0 0% 98%;
-    --foreground: 220 15% 15%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 15% 15%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 15%;
-    --primary: 200 100% 45%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 10% 92%;
-    --secondary-foreground: 220 15% 25%;
-    --muted: 220 10% 94%;
-    --muted-foreground: 220 10% 45%;
-    --accent: 200 80% 50%;
-    --accent-foreground: 0 0% 100%;
-    --border: 220 10% 88%;
-    --input: 220 10% 92%;
-    --sidebar-background: 220 10% 96%;
-    --sidebar-foreground: 220 15% 25%;
-    --sidebar-accent: 220 10% 90%;
-    --sidebar-accent-foreground: 220 15% 15%;
-    --sidebar-border: 220 10% 88%;
-    --row-hover: 220 10% 94%;
+    --background: 38 38% 96%;
+    --foreground: 25 25% 18%;
+    --card: 40 30% 98%;
+    --card-foreground: 25 25% 18%;
+    --popover: 40 30% 98%;
+    --popover-foreground: 25 25% 18%;
+    --primary: 200 80% 38%;
+    --primary-foreground: 40 30% 98%;
+    --secondary: 35 25% 90%;
+    --secondary-foreground: 25 25% 22%;
+    --muted: 35 22% 92%;
+    --muted-foreground: 25 12% 45%;
+    --accent: 200 60% 42%;
+    --accent-foreground: 40 30% 98%;
+    --border: 35 18% 84%;
+    --input: 35 22% 90%;
+    --sidebar-background: 38 34% 94%;
+    --sidebar-foreground: 25 20% 25%;
+    --sidebar-accent: 35 22% 88%;
+    --sidebar-accent-foreground: 25 25% 18%;
+    --sidebar-border: 35 18% 84%;
+    --row-hover: 35 22% 92%;
   }
 
   /* Midnight theme (deeper dark) */

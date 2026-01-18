@@ -45,5 +45,5 @@ export type USBStatus =
 
 export type ViewMode = 'library' | 'files';
 
-export type SortColumn = 'title' | 'artist' | 'album' | 'duration' | 'bpm' | 'key';
+export type SortColumn = 'title' | 'artist' | 'album' | 'genre' | 'duration' | 'bpm';
 export type SortDirection = 'asc' | 'desc';
