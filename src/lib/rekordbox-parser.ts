@@ -575,37 +575,44 @@ function parseSimpleRow(
       break;
     }
     case PAGE_TYPE_ALBUMS: {
-      // Album row: subtype (u16), index_shift (u16), unknown (u32), artist_id (u32), id (u32), unknown (u32), 0x03 (u8), ofs_name_near (u8)
-      // Security: Validate space for album row (minimum 18 bytes)
-      if (rowBase + 18 > bufferLength) {
+      // Album row structure (from Kaitai spec):
+      // 0x00: subtype (u16)
+      // 0x02: index_shift (u16)
+      // 0x04: unknown (u32)
+      // 0x08: artist_id (u32)
+      // 0x0C: id (u32)
+      // 0x10: unknown (u32)
+      // 0x14: unknown (u8) - should be 0x03
+      // 0x15: ofs_name_near (u8)
+      // Security: Validate space for album row (minimum 22 bytes for near offset)
+      if (rowBase + 22 > bufferLength) {
         console.error(`parseSimpleRow: insufficient space for album row at offset ${rowBase}`);
         return;
       }
       
       const subtype = dataView.getUint16(rowBase, true);
-      const id = dataView.getUint32(rowBase + 12, true);
+      const id = dataView.getUint32(rowBase + 0x0C, true);
       
-      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      // Security: Validate ID is reasonable
       if (id === 0) {
-        console.error(`parseSimpleRow: invalid album ID ${id}`);
-        return;
+        return; // Skip invalid entries silently as ID 0 means no album
       }
       
       let nameOffset: number;
-      if ((subtype & 0x04) === 0x04) {
-        // Long offset at row + 0x16
+      if ((subtype & 0x100) !== 0) {
+        // Long offset: 2-byte offset at row + 0x16
         if (rowBase + 0x18 > bufferLength) {
           console.error(`parseSimpleRow: insufficient space for long offset at ${rowBase + 0x16}`);
           return;
         }
         nameOffset = dataView.getUint16(rowBase + 0x16, true);
       } else {
-        nameOffset = dataView.getUint8(rowBase + 17);
+        // Near offset at row + 0x15
+        nameOffset = dataView.getUint8(rowBase + 0x15);
       }
       
-      // Security: Validate nameOffset is within reasonable range (getUint16/getUint8 are always >= 0)
-      if (nameOffset > 10000) {
-        console.error(`parseSimpleRow: invalid name offset ${nameOffset} for album`);
+      // Security: Validate nameOffset is within reasonable range
+      if (nameOffset === 0 || nameOffset > 10000) {
         return;
       }
       
