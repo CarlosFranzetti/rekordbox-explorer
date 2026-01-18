@@ -6,6 +6,7 @@ import {
   parseRekordboxDatabase, 
   listDirectory 
 } from '@/lib/rekordbox-parser';
+import { useToast } from '@/hooks/use-toast';
 
 export function useRekordbox() {
   const [status, setStatus] = useState<USBStatus>({ type: 'idle' });
@@ -17,6 +18,7 @@ export function useRekordbox() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<SortColumn>('title');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const { toast } = useToast();
 
   const selectFolder = useCallback(async () => {
     try {
@@ -31,7 +33,7 @@ export function useRekordbox() {
 
       setStatus({ type: 'loading' });
       
-      const handle = await (window as any).showDirectoryPicker({ mode: 'read' }) as FileSystemDirectoryHandle;
+      const handle = await window.showDirectoryPicker({ mode: 'read' });
       setRootHandle(handle);
       setCurrentDirectory(handle);
       setDirectoryPath([handle.name]);
@@ -43,11 +45,28 @@ export function useRekordbox() {
         try {
           const database = await parseRekordboxDatabase(result.handle);
           setStatus({ type: 'valid', database });
+          
+          // Show success toast
+          toast({
+            title: "Database Loaded",
+            description: `Successfully loaded ${database.tracks.length} tracks from Rekordbox database.`,
+            variant: "default",
+          });
         } catch (parseError) {
           console.error('Parse error:', parseError);
+          
+          const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown error';
+          
+          // Show error toast for user feedback
+          toast({
+            title: "Parse Error",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          
           setStatus({
             type: 'error',
-            message: `Failed to parse Rekordbox database: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`
+            message: `Failed to parse Rekordbox database: ${errorMessage}`
           });
         }
       } else if (result.partialMatch) {
@@ -67,12 +86,22 @@ export function useRekordbox() {
         return;
       }
       console.error('Folder selection error:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Failed to access the selected folder.';
+      
+      // Show error toast for user feedback
+      toast({
+        title: "Folder Selection Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
       setStatus({
         type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to access the selected folder.'
+        message: errorMessage
       });
     }
-  }, []);
+  }, [toast]);
 
   const performFullScan = useCallback(async () => {
     if (!rootHandle) return;
@@ -85,19 +114,44 @@ export function useRekordbox() {
       if (result.found && result.handle) {
         const database = await parseRekordboxDatabase(result.handle);
         setStatus({ type: 'valid', database });
+        
+        // Show success toast
+        toast({
+          title: "Database Found",
+          description: `Found and loaded ${database.tracks.length} tracks from Rekordbox database.`,
+          variant: "default",
+        });
       } else {
         setStatus({
           type: 'invalid',
           message: 'No export.pdb file found after full scan.'
         });
+        
+        // Show info toast
+        toast({
+          title: "Database Not Found",
+          description: "No export.pdb file found after full scan.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
+      console.error('Full scan error:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Full scan failed.';
+      
+      // Show error toast
+      toast({
+        title: "Full Scan Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
       setStatus({
         type: 'error',
-        message: error instanceof Error ? error.message : 'Full scan failed.'
+        message: errorMessage
       });
     }
-  }, [rootHandle]);
+  }, [rootHandle, toast]);
 
   const navigateToDirectory = useCallback(async (dirHandle: FileSystemDirectoryHandle, dirName: string) => {
     try {
