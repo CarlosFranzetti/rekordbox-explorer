@@ -99,7 +99,7 @@ export function PlaylistSidebar({
   onReset
 }: PlaylistSidebarProps) {
   return (
-    <div className="flex h-full w-64 flex-col border-r border-sidebar-border bg-sidebar">
+    <div className="flex h-full w-full min-w-0 flex-col border-r border-sidebar-border bg-sidebar">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-sidebar-border p-3">
         <h2 className="font-semibold text-sidebar-foreground">Library</h2>
