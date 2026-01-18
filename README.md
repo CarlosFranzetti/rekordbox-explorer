@@ -1,9 +1,19 @@
+# RekordboxY
+
+RekordboxY is a **web-based tool** for inspecting Rekordbox USB drives directly in the browser.
+
+It lets DJs and music collectors **open a Rekordbox-exported USB**, read the Rekordbox database (`export.pdb` / `exportExt.pdb`), browse tracks and search without Rekordbox installed.
+
+No uploads. No cloud sync. Everything runs locally in your browser.
+
+---
+
+## What This App Does
+
+- 📂 Opens a Rekordbox USB or exported drive folder using the File System Access API
+- 🔍 Automatically detects Rekordbox databases at:
 - 🎵 Parses real track metadata from the Rekordbox device database
 - 🔎 Search and filter by title, artist, album, or genre
-- 📊 View BPM, key, rating, play count, duration, bitrate, and file paths
-- 📤 Export your full track library as:
-- CSV (for spreadsheets, Discogs, analysis)
-- JSON (for tooling, scripts, or other apps)
 
 ---
 
