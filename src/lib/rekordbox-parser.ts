@@ -1,10 +1,6 @@
 import type { Track, Playlist, RekordboxDatabase, FileEntry } from '@/types/rekordbox';
 
-// PDB file structure constants
-const PDB_HEADER_SIZE = 28;
-const PAGE_SIZE = 4096;
-
-// Page types
+// Page types from the PDB format
 const PAGE_TYPE_TRACKS = 0;
 const PAGE_TYPE_GENRES = 1;
 const PAGE_TYPE_ARTISTS = 2;
@@ -12,15 +8,8 @@ const PAGE_TYPE_ALBUMS = 3;
 const PAGE_TYPE_LABELS = 4;
 const PAGE_TYPE_KEYS = 5;
 const PAGE_TYPE_COLORS = 6;
-const PAGE_TYPE_PLAYLISTS = 7;
-const PAGE_TYPE_PLAYLIST_TREE = 8;
-const PAGE_TYPE_ARTWORK = 10;
-const PAGE_TYPE_HISTORY = 19;
-
-interface ParsedPage {
-  type: number;
-  entries: any[];
-}
+const PAGE_TYPE_PLAYLIST_TREE = 7;
+const PAGE_TYPE_PLAYLIST_ENTRIES = 8;
 
 export async function findRekordboxDatabase(directoryHandle: FileSystemDirectoryHandle): Promise<{
   found: boolean;
@@ -50,7 +39,7 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
     
     // Check for rekordbox folder
     try {
-      const rekordboxDir = await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
+      await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
       
       // rekordbox folder exists but no export.pdb
       return {
@@ -99,7 +88,6 @@ export async function fullScanForDatabase(directoryHandle: FileSystemDirectoryHa
   handle?: FileSystemFileHandle;
   path?: string;
 }> {
-  // Recursively search for export.pdb
   async function searchDirectory(dir: FileSystemDirectoryHandle, currentPath: string): Promise<{
     found: boolean;
     handle?: FileSystemFileHandle;
@@ -124,115 +112,132 @@ export async function fullScanForDatabase(directoryHandle: FileSystemDirectoryHa
   return searchDirectory(directoryHandle, '');
 }
 
+// DeviceSQL String parsing
+function readDeviceSqlString(dataView: DataView, offset: number, bufferLength: number): string {
+  if (offset >= bufferLength || offset < 0) return '';
+  
+  try {
+    const lengthAndKind = dataView.getUint8(offset);
+    
+    if (lengthAndKind === 0x40) {
+      // Long ASCII: 2-byte length follows, then 1 byte padding, then string
+      if (offset + 4 >= bufferLength) return '';
+      const length = dataView.getUint16(offset + 1, true);
+      if (length < 4 || offset + 4 + (length - 4) > bufferLength) return '';
+      const textBytes = new Uint8Array(dataView.buffer, offset + 4, length - 4);
+      return new TextDecoder('ascii').decode(textBytes);
+    } else if (lengthAndKind === 0x90) {
+      // UTF-16LE: 2-byte length follows, then 1 byte padding, then string
+      if (offset + 4 >= bufferLength) return '';
+      const length = dataView.getUint16(offset + 1, true);
+      if (length < 4 || offset + 4 + (length - 4) > bufferLength) return '';
+      const textBytes = new Uint8Array(dataView.buffer, offset + 4, length - 4);
+      return new TextDecoder('utf-16le').decode(textBytes);
+    } else if (lengthAndKind % 2 === 1) {
+      // Short ASCII: length encoded in the byte
+      const length = lengthAndKind >> 1;
+      if (length < 1 || offset + 1 + (length - 1) > bufferLength) return '';
+      const textBytes = new Uint8Array(dataView.buffer, offset + 1, length - 1);
+      return new TextDecoder('ascii').decode(textBytes);
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+interface TableInfo {
+  type: number;
+  firstPage: number;
+  lastPage: number;
+}
+
 export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): Promise<RekordboxDatabase> {
   const file = await fileHandle.getFile();
   const buffer = await file.arrayBuffer();
   const dataView = new DataView(buffer);
+  const bufferLength = buffer.byteLength;
   
-  const tracks: Track[] = [];
-  const playlists: Playlist[] = [];
+  // Parse file header
+  const lenPage = dataView.getUint32(4, true);
+  const numTables = dataView.getUint32(8, true);
   
-  // Lookup tables for resolving IDs
+  // Parse table pointers (starting at offset 28)
+  const tables: TableInfo[] = [];
+  let offset = 28;
+  for (let i = 0; i < numTables && offset + 16 <= bufferLength; i++) {
+    const type = dataView.getUint32(offset, true);
+    const firstPage = dataView.getUint32(offset + 8, true);
+    const lastPage = dataView.getUint32(offset + 12, true);
+    tables.push({ type, firstPage, lastPage });
+    offset += 16;
+  }
+
+  // Lookup tables
   const artists: Map<number, string> = new Map();
   const albums: Map<number, string> = new Map();
   const genres: Map<number, string> = new Map();
   const keys: Map<number, string> = new Map();
-  const playlistTree: Map<number, { name: string; parentId: number; isFolder: boolean }> = new Map();
-  const playlistEntries: Map<number, number[]> = new Map();
+  const labels: Map<number, string> = new Map();
+  const playlistTree: Map<number, { name: string; parentId: number; isFolder: boolean; sortOrder: number }> = new Map();
+  const playlistEntries: Map<number, { trackId: number; position: number }[]> = new Map();
+  const trackData: Map<number, Track> = new Map();
 
-  // Parse the PDB file
-  const numTables = dataView.getUint32(4, true);
-  let offset = PDB_HEADER_SIZE;
-
-  // First pass: read all lookup tables
-  for (let tableIdx = 0; tableIdx < numTables && offset < buffer.byteLength; tableIdx++) {
-    const tableType = dataView.getUint32(offset, true);
-    const emptyCandidate = dataView.getUint32(offset + 4, true);
-    const firstPage = dataView.getUint32(offset + 8, true);
-    const lastPage = dataView.getUint32(offset + 12, true);
-    
-    offset += 16;
-    
-    // Read pages for this table
-    let pageOffset = firstPage * PAGE_SIZE;
-    
-    while (pageOffset < buffer.byteLength) {
-      try {
-        const pageHeader = parsePageHeader(dataView, pageOffset);
-        
-        if (pageHeader.pageType === tableType) {
-          const entries = parsePageEntries(dataView, pageOffset, tableType, buffer.byteLength);
-          
-          switch (tableType) {
-            case PAGE_TYPE_ARTISTS:
-              entries.forEach(e => artists.set(e.id, e.name));
-              break;
-            case PAGE_TYPE_ALBUMS:
-              entries.forEach(e => albums.set(e.id, e.name));
-              break;
-            case PAGE_TYPE_GENRES:
-              entries.forEach(e => genres.set(e.id, e.name));
-              break;
-            case PAGE_TYPE_KEYS:
-              entries.forEach(e => keys.set(e.id, e.name));
-              break;
-            case PAGE_TYPE_PLAYLIST_TREE:
-              entries.forEach(e => playlistTree.set(e.id, { 
-                name: e.name, 
-                parentId: e.parentId, 
-                isFolder: e.isFolder 
-              }));
-              break;
-            case PAGE_TYPE_PLAYLISTS:
-              entries.forEach(e => {
-                if (!playlistEntries.has(e.playlistId)) {
-                  playlistEntries.set(e.playlistId, []);
-                }
-                playlistEntries.get(e.playlistId)!.push(e.trackId);
-              });
-              break;
-            case PAGE_TYPE_TRACKS:
-              entries.forEach(e => {
-                tracks.push({
-                  id: e.id,
-                  title: e.title || 'Unknown Title',
-                  artist: artists.get(e.artistId) || 'Unknown Artist',
-                  album: albums.get(e.albumId) || 'Unknown Album',
-                  genre: genres.get(e.genreId) || '',
-                  duration: e.duration || 0,
-                  bpm: e.bpm || 0,
-                  key: keys.get(e.keyId) || '',
-                  rating: e.rating || 0,
-                  bitrate: e.bitrate || 0,
-                  filePath: e.filePath || '',
-                  dateAdded: new Date(e.dateAdded * 1000 || Date.now())
-                });
-              });
-              break;
-          }
-        }
-        
-        if (pageHeader.nextPage === 0 || pageHeader.nextPage === pageOffset / PAGE_SIZE) {
-          break;
-        }
-        pageOffset = pageHeader.nextPage * PAGE_SIZE;
-      } catch (e) {
-        break;
-      }
+  // First pass: parse lookup tables (artists, albums, genres, keys, labels)
+  for (const table of tables) {
+    if (table.type === PAGE_TYPE_ARTISTS || table.type === PAGE_TYPE_ALBUMS || 
+        table.type === PAGE_TYPE_GENRES || table.type === PAGE_TYPE_KEYS || 
+        table.type === PAGE_TYPE_LABELS) {
+      parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number, pageType: number) => {
+        parseSimpleRow(dataView, rowBase, pageType, bufferLength, artists, albums, genres, keys, labels);
+      });
     }
   }
+
+  // Second pass: parse playlist tree
+  for (const table of tables) {
+    if (table.type === PAGE_TYPE_PLAYLIST_TREE) {
+      parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number) => {
+        parsePlaylistTreeRow(dataView, rowBase, bufferLength, playlistTree);
+      });
+    }
+  }
+
+  // Third pass: parse playlist entries  
+  for (const table of tables) {
+    if (table.type === PAGE_TYPE_PLAYLIST_ENTRIES) {
+      parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number) => {
+        parsePlaylistEntryRow(dataView, rowBase, playlistEntries);
+      });
+    }
+  }
+
+  // Fourth pass: parse tracks
+  for (const table of tables) {
+    if (table.type === PAGE_TYPE_TRACKS) {
+      parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number) => {
+        parseTrackRow(dataView, rowBase, bufferLength, artists, albums, genres, keys, trackData);
+      });
+    }
+  }
+
+  // Convert track map to array
+  const tracks = Array.from(trackData.values());
 
   // Build playlist hierarchy
   const playlistMap = new Map<number, Playlist>();
   
   playlistTree.forEach((value, id) => {
+    const entries = playlistEntries.get(id) || [];
+    const sortedEntries = entries.sort((a, b) => a.position - b.position);
+    
     const playlist: Playlist = {
       id,
       name: value.name,
       parentId: value.parentId === 0 ? null : value.parentId,
       isFolder: value.isFolder,
       children: [],
-      trackIds: playlistEntries.get(id) || []
+      trackIds: sortedEntries.map(e => e.trackId)
     };
     playlistMap.set(id, playlist);
   });
@@ -247,8 +252,14 @@ export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): 
     }
   });
 
-  // Get root playlists (no parent)
-  const rootPlaylists = Array.from(playlistMap.values()).filter(p => p.parentId === null);
+  // Get root playlists (no parent) and sort by original order
+  const rootPlaylists = Array.from(playlistMap.values())
+    .filter(p => p.parentId === null)
+    .sort((a, b) => {
+      const aOrder = playlistTree.get(a.id)?.sortOrder ?? 0;
+      const bOrder = playlistTree.get(b.id)?.sortOrder ?? 0;
+      return aOrder - bOrder;
+    });
 
   return {
     tracks,
@@ -256,164 +267,290 @@ export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): 
   };
 }
 
-function parsePageHeader(dataView: DataView, offset: number): {
-  pageType: number;
-  nextPage: number;
-  numRowsSmall: number;
-  numRowsLarge: number;
-} {
-  return {
-    pageType: dataView.getUint32(offset + 10, true) & 0x0F,
-    nextPage: dataView.getUint32(offset + 4, true),
-    numRowsSmall: dataView.getUint8(offset + 17),
-    numRowsLarge: dataView.getUint16(offset + 18, true)
-  };
-}
-
-function parsePageEntries(dataView: DataView, pageOffset: number, tableType: number, bufferLength: number): any[] {
-  const entries: any[] = [];
-  const rowOffsetStart = pageOffset + 40;
+function parseTablePages(
+  dataView: DataView, 
+  table: TableInfo, 
+  lenPage: number, 
+  bufferLength: number,
+  rowCallback: (rowBase: number, pageType: number) => void
+) {
+  let pageIndex = table.firstPage;
+  const visitedPages = new Set<number>();
   
-  try {
-    const numRows = dataView.getUint8(pageOffset + 17) || dataView.getUint16(pageOffset + 18, true);
+  while (pageIndex > 0 && !visitedPages.has(pageIndex)) {
+    visitedPages.add(pageIndex);
+    const pageOffset = pageIndex * lenPage;
     
-    for (let i = 0; i < Math.min(numRows, 100); i++) {
-      const rowOffset = dataView.getUint16(rowOffsetStart + i * 2, true);
-      if (rowOffset === 0 || pageOffset + rowOffset >= bufferLength) continue;
+    if (pageOffset + lenPage > bufferLength) break;
+    
+    // Parse page header
+    // Bytes 0-3: gap (zeros)
+    // Bytes 4-7: page_index
+    // Bytes 8-11: type
+    // Bytes 12-15: next_page index
+    // Bytes 16-19: sequence
+    // Bytes 20-23: unknown
+    // Bytes 24-26: packed bits (num_row_offsets: 13 bits, num_rows: 11 bits)
+    // Byte 27: page_flags
+    
+    const pageType = dataView.getUint32(pageOffset + 8, true);
+    const nextPageIndex = dataView.getUint32(pageOffset + 12, true);
+    
+    // Read the packed bits for row counts
+    const packedRowInfo = dataView.getUint32(pageOffset + 24, true);
+    const numRowOffsets = packedRowInfo & 0x1FFF; // Lower 13 bits
+    const pageFlags = dataView.getUint8(pageOffset + 27);
+    
+    // Check if this is a data page (bit 0x40 not set means it's a data page)
+    const isDataPage = (pageFlags & 0x40) === 0;
+    
+    if (isDataPage && pageType === table.type && numRowOffsets > 0) {
+      // Row index is built backwards from end of page
+      // Each row group can hold up to 16 rows
+      const numRowGroups = Math.ceil(numRowOffsets / 16);
+      const heapPos = pageOffset + 40; // Data starts after 40-byte header
       
-      const entryOffset = pageOffset + rowOffset;
-      
-      try {
-        switch (tableType) {
-          case PAGE_TYPE_ARTISTS:
-          case PAGE_TYPE_ALBUMS:
-          case PAGE_TYPE_GENRES:
-          case PAGE_TYPE_KEYS:
-          case PAGE_TYPE_LABELS:
-            entries.push(parseStringEntry(dataView, entryOffset, bufferLength));
-            break;
-          case PAGE_TYPE_TRACKS:
-            entries.push(parseTrackEntry(dataView, entryOffset, bufferLength));
-            break;
-          case PAGE_TYPE_PLAYLIST_TREE:
-            entries.push(parsePlaylistTreeEntry(dataView, entryOffset, bufferLength));
-            break;
-          case PAGE_TYPE_PLAYLISTS:
-            entries.push(parsePlaylistEntry(dataView, entryOffset));
-            break;
+      for (let groupIndex = 0; groupIndex < numRowGroups; groupIndex++) {
+        const groupBase = pageOffset + lenPage - (groupIndex * 0x24);
+        
+        // Row present flags at groupBase - 4
+        if (groupBase - 4 < pageOffset + 40) continue;
+        const rowPresentFlags = dataView.getUint16(groupBase - 4, true);
+        
+        // Parse up to 16 rows in this group
+        for (let rowIndex = 0; rowIndex < 16; rowIndex++) {
+          // Check if this row is present
+          const isPresent = ((rowPresentFlags >> rowIndex) & 1) !== 0;
+          if (!isPresent) continue;
+          
+          // Row offset is at groupBase - 6 - (rowIndex * 2)
+          const ofsRowPos = groupBase - 6 - (rowIndex * 2);
+          if (ofsRowPos < pageOffset + 40) continue;
+          
+          const ofsRow = dataView.getUint16(ofsRowPos, true);
+          const rowBase = heapPos + ofsRow;
+          
+          if (rowBase >= pageOffset + lenPage) continue;
+          
+          try {
+            rowCallback(rowBase, pageType);
+          } catch {
+            // Skip malformed rows
+          }
         }
-      } catch (e) {
-        // Skip malformed entries
-      }
-    }
-  } catch (e) {
-    // Skip malformed pages
-  }
-  
-  return entries;
-}
-
-function parseStringEntry(dataView: DataView, offset: number, bufferLength: number): { id: number; name: string } {
-  const id = dataView.getUint32(offset + 4, true);
-  const nameOffset = offset + 10;
-  const name = readString(dataView, nameOffset, bufferLength);
-  return { id, name };
-}
-
-function parseTrackEntry(dataView: DataView, offset: number, bufferLength: number): any {
-  const bitmask = dataView.getUint16(offset, true);
-  let fieldOffset = offset + 2;
-  
-  const entry: any = {
-    id: 0,
-    title: '',
-    artistId: 0,
-    albumId: 0,
-    genreId: 0,
-    keyId: 0,
-    duration: 0,
-    bpm: 0,
-    rating: 0,
-    bitrate: 0,
-    filePath: '',
-    dateAdded: 0
-  };
-
-  // Parse fields based on bitmask
-  // This is a simplified parser - real implementation would need field-by-field parsing
-  try {
-    entry.id = dataView.getUint32(offset + 4, true);
-    
-    // Find title offset (usually around byte 20-40)
-    for (let searchOffset = offset + 20; searchOffset < Math.min(offset + 200, bufferLength); searchOffset++) {
-      const char = dataView.getUint8(searchOffset);
-      if (char > 31 && char < 127) {
-        entry.title = readString(dataView, searchOffset, bufferLength);
-        break;
       }
     }
     
-    // Parse numeric fields at known offsets
-    if (offset + 16 < bufferLength) entry.artistId = dataView.getUint32(offset + 12, true);
-    if (offset + 20 < bufferLength) entry.albumId = dataView.getUint32(offset + 16, true);
-    if (offset + 24 < bufferLength) entry.genreId = dataView.getUint32(offset + 20, true);
-    if (offset + 28 < bufferLength) entry.keyId = dataView.getUint32(offset + 24, true);
-    if (offset + 32 < bufferLength) entry.duration = dataView.getUint32(offset + 28, true);
-    if (offset + 36 < bufferLength) entry.bpm = dataView.getUint16(offset + 32, true) / 100;
-    if (offset + 40 < bufferLength) entry.rating = dataView.getUint8(offset + 36);
-    if (offset + 44 < bufferLength) entry.bitrate = dataView.getUint16(offset + 40, true);
-  } catch (e) {
-    // Return partial entry
+    // Move to next page
+    if (nextPageIndex === 0 || nextPageIndex >= bufferLength / lenPage) break;
+    if (pageIndex === table.lastPage) break;
+    pageIndex = nextPageIndex;
+  }
+}
+
+function parseSimpleRow(
+  dataView: DataView,
+  rowBase: number,
+  pageType: number,
+  bufferLength: number,
+  artists: Map<number, string>,
+  albums: Map<number, string>,
+  genres: Map<number, string>,
+  keys: Map<number, string>,
+  labels: Map<number, string>
+) {
+  if (rowBase + 10 > bufferLength) return;
+  
+  switch (pageType) {
+    case PAGE_TYPE_ARTISTS: {
+      // Artist row: subtype (u16), index_shift (u16), id (u32), 0x03 (u8), ofs_name_near (u8)
+      const subtype = dataView.getUint16(rowBase, true);
+      const id = dataView.getUint32(rowBase + 4, true);
+      let nameOffset: number;
+      if ((subtype & 0x04) === 0x04) {
+        // Long offset at row + 0x0a
+        nameOffset = dataView.getUint16(rowBase + 0x0a, true);
+      } else {
+        nameOffset = dataView.getUint8(rowBase + 9);
+      }
+      const name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
+      if (name) artists.set(id, name);
+      break;
+    }
+    case PAGE_TYPE_ALBUMS: {
+      // Album row: subtype (u16), index_shift (u16), unknown (u32), artist_id (u32), id (u32), unknown (u32), 0x03 (u8), ofs_name_near (u8)
+      const subtype = dataView.getUint16(rowBase, true);
+      const id = dataView.getUint32(rowBase + 12, true);
+      let nameOffset: number;
+      if ((subtype & 0x04) === 0x04) {
+        // Long offset at row + 0x16
+        nameOffset = dataView.getUint16(rowBase + 0x16, true);
+      } else {
+        nameOffset = dataView.getUint8(rowBase + 17);
+      }
+      const name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
+      if (name) albums.set(id, name);
+      break;
+    }
+    case PAGE_TYPE_GENRES: {
+      // Genre row: id (u32), name (device_sql_string)
+      const id = dataView.getUint32(rowBase, true);
+      const name = readDeviceSqlString(dataView, rowBase + 4, bufferLength);
+      if (name) genres.set(id, name);
+      break;
+    }
+    case PAGE_TYPE_KEYS: {
+      // Key row: id (u32), id2 (u32), name (device_sql_string)
+      const id = dataView.getUint32(rowBase, true);
+      const name = readDeviceSqlString(dataView, rowBase + 8, bufferLength);
+      if (name) keys.set(id, name);
+      break;
+    }
+    case PAGE_TYPE_LABELS: {
+      // Label row: id (u32), name (device_sql_string)
+      const id = dataView.getUint32(rowBase, true);
+      const name = readDeviceSqlString(dataView, rowBase + 4, bufferLength);
+      if (name) labels.set(id, name);
+      break;
+    }
+  }
+}
+
+function parsePlaylistTreeRow(
+  dataView: DataView,
+  rowBase: number,
+  bufferLength: number,
+  playlistTree: Map<number, { name: string; parentId: number; isFolder: boolean; sortOrder: number }>
+) {
+  if (rowBase + 20 > bufferLength) return;
+  
+  // Playlist tree row: parent_id (u32), unknown (u32), sort_order (u32), id (u32), raw_is_folder (u32), name
+  const parentId = dataView.getUint32(rowBase, true);
+  const sortOrder = dataView.getUint32(rowBase + 8, true);
+  const id = dataView.getUint32(rowBase + 12, true);
+  const rawIsFolder = dataView.getUint32(rowBase + 16, true);
+  const name = readDeviceSqlString(dataView, rowBase + 20, bufferLength);
+  
+  if (name && id > 0) {
+    playlistTree.set(id, {
+      name,
+      parentId,
+      isFolder: rawIsFolder !== 0,
+      sortOrder
+    });
+  }
+}
+
+function parsePlaylistEntryRow(
+  dataView: DataView,
+  rowBase: number,
+  playlistEntries: Map<number, { trackId: number; position: number }[]>
+) {
+  // Playlist entry row: entry_index (u32), track_id (u32), playlist_id (u32)
+  const entryIndex = dataView.getUint32(rowBase, true);
+  const trackId = dataView.getUint32(rowBase + 4, true);
+  const playlistId = dataView.getUint32(rowBase + 8, true);
+  
+  if (playlistId > 0 && trackId > 0) {
+    if (!playlistEntries.has(playlistId)) {
+      playlistEntries.set(playlistId, []);
+    }
+    playlistEntries.get(playlistId)!.push({ trackId, position: entryIndex });
+  }
+}
+
+function parseTrackRow(
+  dataView: DataView,
+  rowBase: number,
+  bufferLength: number,
+  artists: Map<number, string>,
+  albums: Map<number, string>,
+  genres: Map<number, string>,
+  keys: Map<number, string>,
+  trackData: Map<number, Track>
+) {
+  // Track row structure (based on kaitai spec):
+  // 0x00: subtype (u16) - always 0x24
+  // 0x02: index_shift (u16)
+  // 0x04: bitmask (u32)
+  // 0x08: sample_rate (u32)
+  // 0x0C: composer_id (u32)
+  // 0x10: file_size (u32)
+  // 0x14: unknown (u32)
+  // 0x18: unknown (u16)
+  // 0x1A: unknown (u16)
+  // 0x1C: artwork_id (u32)
+  // 0x20: key_id (u32)
+  // 0x24: original_artist_id (u32)
+  // 0x28: label_id (u32)
+  // 0x2C: remixer_id (u32)
+  // 0x30: bitrate (u32)
+  // 0x34: track_number (u32)
+  // 0x38: tempo (u32) - BPM * 100
+  // 0x3C: genre_id (u32)
+  // 0x40: album_id (u32)
+  // 0x44: artist_id (u32)
+  // 0x48: id (u32)
+  // 0x4C: disc_number (u16)
+  // 0x4E: play_count (u16)
+  // 0x50: year (u16)
+  // 0x52: sample_depth (u16)
+  // 0x54: duration (u16)
+  // 0x56: unknown (u16)
+  // 0x58: color_id (u8)
+  // 0x59: rating (u8)
+  // 0x5A: unknown (u16)
+  // 0x5C: unknown (u16)
+  // 0x5E-0x86: ofs_strings[21] (u16 each, 42 bytes total)
+  // String offsets: [0]=isrc, [1]=texter, ..., [17]=title, [18]=unknown, [19]=filename, [20]=file_path
+
+  if (rowBase + 0x86 > bufferLength) return;
+  
+  const tempo = dataView.getUint32(rowBase + 0x38, true);
+  const genreId = dataView.getUint32(rowBase + 0x3C, true);
+  const albumId = dataView.getUint32(rowBase + 0x40, true);
+  const artistId = dataView.getUint32(rowBase + 0x44, true);
+  const id = dataView.getUint32(rowBase + 0x48, true);
+  const duration = dataView.getUint16(rowBase + 0x54, true);
+  const rating = dataView.getUint8(rowBase + 0x59);
+  const bitrate = dataView.getUint32(rowBase + 0x30, true);
+  const keyId = dataView.getUint32(rowBase + 0x20, true);
+  
+  // Read string offsets (21 u16 values starting at 0x5E)
+  const ofsStrings: number[] = [];
+  for (let i = 0; i < 21; i++) {
+    ofsStrings.push(dataView.getUint16(rowBase + 0x5E + (i * 2), true));
   }
   
-  return entry;
-}
-
-function parsePlaylistTreeEntry(dataView: DataView, offset: number, bufferLength: number): any {
-  return {
-    id: dataView.getUint32(offset + 4, true),
-    parentId: dataView.getUint32(offset + 8, true),
-    name: readString(dataView, offset + 16, bufferLength),
-    isFolder: dataView.getUint8(offset + 12) === 1
-  };
-}
-
-function parsePlaylistEntry(dataView: DataView, offset: number): any {
-  return {
-    playlistId: dataView.getUint32(offset + 4, true),
-    trackId: dataView.getUint32(offset + 8, true)
-  };
-}
-
-function readString(dataView: DataView, offset: number, bufferLength: number): string {
-  const chars: number[] = [];
-  let currentOffset = offset;
+  // Title is at index 17
+  const titleOffset = ofsStrings[17];
+  const title = titleOffset > 0 ? readDeviceSqlString(dataView, rowBase + titleOffset, bufferLength) : '';
   
-  // Check for UTF-16 (starts with 0x90 0x03 or similar)
-  const firstByte = dataView.getUint8(currentOffset);
-  const isUtf16 = firstByte === 0x90 || firstByte === 0x03;
+  // File path is at index 20
+  const filePathOffset = ofsStrings[20];
+  const filePath = filePathOffset > 0 ? readDeviceSqlString(dataView, rowBase + filePathOffset, bufferLength) : '';
   
-  if (isUtf16) {
-    currentOffset += 2; // Skip length bytes
-    while (currentOffset + 1 < bufferLength) {
-      const char = dataView.getUint16(currentOffset, true);
-      if (char === 0) break;
-      chars.push(char);
-      currentOffset += 2;
-      if (chars.length > 500) break; // Safety limit
-    }
-    return String.fromCharCode(...chars);
-  } else {
-    // ASCII/Latin-1
-    while (currentOffset < bufferLength) {
-      const char = dataView.getUint8(currentOffset);
-      if (char === 0) break;
-      if (char < 32 && char !== 9 && char !== 10 && char !== 13) break;
-      chars.push(char);
-      currentOffset++;
-      if (chars.length > 500) break; // Safety limit
-    }
-    return String.fromCharCode(...chars);
+  // Date added is at index 10
+  const dateAddedOffset = ofsStrings[10];
+  const dateAddedStr = dateAddedOffset > 0 ? readDeviceSqlString(dataView, rowBase + dateAddedOffset, bufferLength) : '';
+  
+  // Only add if we have a valid ID and some meaningful data
+  if (id > 0) {
+    // Use the latest entry for each track ID (handles duplicates)
+    trackData.set(id, {
+      id,
+      title: title || 'Unknown Title',
+      artist: artists.get(artistId) || 'Unknown Artist',
+      album: albums.get(albumId) || 'Unknown Album',
+      genre: genres.get(genreId) || '',
+      duration: duration,
+      bpm: tempo / 100,
+      key: keys.get(keyId) || '',
+      rating: rating,
+      bitrate: bitrate,
+      filePath: filePath,
+      dateAdded: dateAddedStr ? new Date(dateAddedStr) : new Date()
+    });
   }
 }
 
