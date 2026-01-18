@@ -20,7 +20,10 @@ const Index = () => {
     setSelectedPlaylist,
     setSearchQuery,
     getFilteredTracks,
-    handleSort
+    handleSort,
+    fileInputRef,
+    handleFileInput,
+    triggerFileInput
   } = useRekordbox();
 
   // Show library view when database is loaded
@@ -53,6 +56,9 @@ const Index = () => {
       onSelectFolder={selectFolder}
       onFullScan={performFullScan}
       onReset={reset}
+      onSelectFile={triggerFileInput}
+      fileInputRef={fileInputRef}
+      onFileInput={handleFileInput}
     />
   );
 };
