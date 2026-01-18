@@ -1,73 +1,61 @@
-# Welcome to your Lovable project
+# Rekordbox Explorer
 
-## Project info
+Rekordbox Explorer is a lightweight web app for quickly browsing the contents of a Rekordbox USB export (export.pdb) without loading the full Rekordbox application. It lets you inspect tracks, playlists and the file layout on a USB drive or folder using your browser's File System Access API.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Key features
+- Detect and parse a Rekordbox `export.pdb` from a USB drive or folder.
+- Browse playlists and track metadata (title, artist, album, BPM, key, duration, etc.).
+- File browser view to inspect the files and folder structure on the drive.
+- Full-scan fallback if the standard Rekordbox folder structure is not present.
+- Works entirely in the browser (no server required) — requires a modern Chromium-based browser that supports the File System Access API.
 
-## How can I edit this code?
+How it works
+- The app uses the File System Access API to let you select a USB drive or a folder.
+- It looks for the standard Rekordbox path `PIONEER/rekordbox/export.pdb` and, if found, parses the database to extract tracks and playlists.
+- If the standard path isn't present, the app can perform a full recursive scan to locate `export.pdb`.
 
-There are several ways of editing your application.
+Quick start (development)
+1. Clone the repository:
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+```bash
 git clone <YOUR_GIT_URL>
+cd rekordbox-explorer
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. Install dependencies:
 
-# Step 3: Install the necessary dependencies.
-npm i
+```bash
+npm ci
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Run the dev server:
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+4. Open the app in a Chromium-based browser (Chrome, Edge, Opera) and click "Select USB or Folder".
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Building for production
+- Build: `npm run build`
+- Preview the production build: `npm run preview`
+- The production build outputs to the `dist` directory by default.
 
-**Use GitHub Codespaces**
+Browser compatibility and limitations
+- Requires a browser that supports the File System Access API (Chromium-based browsers). Safari and Firefox do not currently support the full API used by the app.
+- The app runs client-side; do not store secret API keys in client code. If you need to call external APIs that require secrets, use server-side endpoints or serverless functions.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Deployment (Vercel / static hosts)
+- Build command: `npm run build`
+- Install command: `npm ci` (or leave blank to let Vercel auto-detect)
+- Output directory: `dist`
+- If you deploy to Vercel and use server-side API routes, add any required environment variables in the Vercel project settings.
 
-## What technologies are used for this project?
+Project structure (high-level)
+- `src/` — application source code\- `src/components/` — React components (Landing screen, Library view, File browser, etc.)\- `src/hooks/` — custom hooks (Rekordbox scanning & parsing)\- `src/lib/rekordbox-parser.ts` — Rekordbox export.pdb detection and parsing utilities\- `src/types/` — TypeScript types used across the app\n
+Contributing
+- Contributions are welcome. Open an issue or a pull request describing the change you'd like to make.
 
-This project is built with:
+License
+- This project is provided under the MIT license.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
