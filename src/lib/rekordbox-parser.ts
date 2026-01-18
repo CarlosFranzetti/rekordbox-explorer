@@ -29,8 +29,9 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
       handle: exportPdb,
       path: 'PIONEER/rekordbox/export.pdb'
     };
-  } catch {
+  } catch (error) {
     // Standard path not found, check for partial structure
+    console.error('Standard path (PIONEER/rekordbox/export.pdb) not found:', error);
   }
 
   // Check if PIONEER folder exists
@@ -47,16 +48,18 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
         partialMatch: true,
         message: 'Rekordbox folder found but export.pdb is missing. The USB may not have been exported from Rekordbox properly.'
       };
-    } catch {
+    } catch (error) {
       // PIONEER exists but no rekordbox folder
+      console.error('Rekordbox folder not found in PIONEER directory:', error);
       return {
         found: false,
         partialMatch: true,
         message: 'PIONEER folder found but no rekordbox directory. Would you like to do a full scan?'
       };
     }
-  } catch {
+  } catch (error) {
     // No PIONEER folder at all
+    console.error('PIONEER folder not found:', error);
   }
 
   // Check for other DJ software folders (to give helpful message)
@@ -71,8 +74,9 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
           message: `This appears to be a ${folder} USB, not a Rekordbox USB.`
         };
       }
-    } catch {
+    } catch (error) {
       // Folder doesn't exist, continue
+      console.error(`DJ software folder ${folder} not found:`, error);
     }
   }
 
@@ -93,7 +97,7 @@ export async function fullScanForDatabase(directoryHandle: FileSystemDirectoryHa
     handle?: FileSystemFileHandle;
     path?: string;
   }> {
-    const entries = (dir as any).entries() as AsyncIterableIterator<[string, FileSystemHandle]>;
+    const entries = dir.entries();
     for await (const [name, handle] of entries) {
       if (handle.kind === 'file' && name === 'export.pdb') {
         return {
@@ -114,34 +118,81 @@ export async function fullScanForDatabase(directoryHandle: FileSystemDirectoryHa
 
 // DeviceSQL String parsing
 function readDeviceSqlString(dataView: DataView, offset: number, bufferLength: number): string {
-  if (offset >= bufferLength || offset < 0) return '';
+  // Security: Validate offset bounds
+  if (offset >= bufferLength || offset < 0) {
+    console.error(`readDeviceSqlString: offset ${offset} out of bounds (buffer length: ${bufferLength})`);
+    return '';
+  }
   
   try {
+    // Security: Check minimum space for header byte
+    if (offset + 1 > bufferLength) {
+      console.error(`readDeviceSqlString: insufficient space for header at offset ${offset}`);
+      return '';
+    }
+    
     const lengthAndKind = dataView.getUint8(offset);
     
     if (lengthAndKind === 0x40) {
       // Long ASCII: 2-byte length follows, then 1 byte padding, then string
-      if (offset + 4 >= bufferLength) return '';
+      if (offset + 4 >= bufferLength) {
+        console.error(`readDeviceSqlString: insufficient space for long ASCII at offset ${offset}`);
+        return '';
+      }
       const length = dataView.getUint16(offset + 1, true);
-      if (length < 4 || offset + 4 + (length - 4) > bufferLength) return '';
+      
+      // Security: Validate length is reasonable and within bounds
+      if (length < 4 || length > 65535) {
+        console.error(`readDeviceSqlString: invalid long ASCII length ${length} at offset ${offset}`);
+        return '';
+      }
+      if (offset + 4 + (length - 4) > bufferLength) {
+        console.error(`readDeviceSqlString: long ASCII string extends beyond buffer at offset ${offset}`);
+        return '';
+      }
+      
       const textBytes = new Uint8Array(dataView.buffer, offset + 4, length - 4);
       return new TextDecoder('ascii').decode(textBytes);
     } else if (lengthAndKind === 0x90) {
       // UTF-16LE: 2-byte length follows, then 1 byte padding, then string
-      if (offset + 4 >= bufferLength) return '';
+      if (offset + 4 >= bufferLength) {
+        console.error(`readDeviceSqlString: insufficient space for UTF-16LE at offset ${offset}`);
+        return '';
+      }
       const length = dataView.getUint16(offset + 1, true);
-      if (length < 4 || offset + 4 + (length - 4) > bufferLength) return '';
+      
+      // Security: Validate length is reasonable and within bounds
+      if (length < 4 || length > 65535) {
+        console.error(`readDeviceSqlString: invalid UTF-16LE length ${length} at offset ${offset}`);
+        return '';
+      }
+      if (offset + 4 + (length - 4) > bufferLength) {
+        console.error(`readDeviceSqlString: UTF-16LE string extends beyond buffer at offset ${offset}`);
+        return '';
+      }
+      
       const textBytes = new Uint8Array(dataView.buffer, offset + 4, length - 4);
       return new TextDecoder('utf-16le').decode(textBytes);
     } else if (lengthAndKind % 2 === 1) {
       // Short ASCII: length encoded in the byte
       const length = lengthAndKind >> 1;
-      if (length < 1 || offset + 1 + (length - 1) > bufferLength) return '';
+      
+      // Security: Validate length is reasonable and within bounds
+      if (length < 1 || length > 127) {
+        console.error(`readDeviceSqlString: invalid short ASCII length ${length} at offset ${offset}`);
+        return '';
+      }
+      if (offset + 1 + (length - 1) > bufferLength) {
+        console.error(`readDeviceSqlString: short ASCII string extends beyond buffer at offset ${offset}`);
+        return '';
+      }
+      
       const textBytes = new Uint8Array(dataView.buffer, offset + 1, length - 1);
       return new TextDecoder('ascii').decode(textBytes);
     }
     return '';
-  } catch {
+  } catch (error) {
+    console.error('Error reading DeviceSQL string:', error);
     return '';
   }
 }
@@ -154,13 +205,41 @@ interface TableInfo {
 
 export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): Promise<RekordboxDatabase> {
   const file = await fileHandle.getFile();
+  const fileSize = file.size;
+  
+  // Security: File size validation (500MB default max)
+  const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+  if (fileSize > MAX_FILE_SIZE) {
+    throw new Error(`File too large: ${(fileSize / (1024 * 1024)).toFixed(2)}MB exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
+  }
+  
+  // Security: Warn about large files (over 100MB)
+  if (fileSize > 100 * 1024 * 1024) {
+    console.warn(`Large file detected: ${(fileSize / (1024 * 1024)).toFixed(2)}MB - this may impact performance`);
+  }
+  
   const buffer = await file.arrayBuffer();
   const dataView = new DataView(buffer);
   const bufferLength = buffer.byteLength;
   
+  // Security: Validate minimum file size for header
+  if (bufferLength < 28) {
+    throw new Error('File too small to be a valid Rekordbox database');
+  }
+  
   // Parse file header
   const lenPage = dataView.getUint32(4, true);
   const numTables = dataView.getUint32(8, true);
+  
+  // Security: Validate numTables count (getUint32 is always >= 0)
+  if (numTables > 1000) {
+    throw new Error(`Invalid number of tables: ${numTables}`);
+  }
+  
+  // Security: Validate lenPage (getUint32 is always >= 0)
+  if (lenPage < 512 || lenPage > 1024 * 1024) {
+    throw new Error(`Invalid page length: ${lenPage}`);
+  }
   
   // Parse table pointers (starting at offset 28)
   const tables: TableInfo[] = [];
@@ -169,6 +248,14 @@ export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): 
     const type = dataView.getUint32(offset, true);
     const firstPage = dataView.getUint32(offset + 8, true);
     const lastPage = dataView.getUint32(offset + 12, true);
+    
+    // Security: Validate page indices
+    if (firstPage > bufferLength / lenPage || lastPage > bufferLength / lenPage) {
+      console.error(`Invalid page indices for table ${i}: first=${firstPage}, last=${lastPage}`);
+      offset += 16;
+      continue;
+    }
+    
     tables.push({ type, firstPage, lastPage });
     offset += 16;
   }
@@ -207,7 +294,7 @@ export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): 
   for (const table of tables) {
     if (table.type === PAGE_TYPE_PLAYLIST_ENTRIES) {
       parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number) => {
-        parsePlaylistEntryRow(dataView, rowBase, playlistEntries);
+        parsePlaylistEntryRow(dataView, rowBase, bufferLength, playlistEntries);
       });
     }
   }
@@ -277,11 +364,27 @@ function parseTablePages(
   let pageIndex = table.firstPage;
   const visitedPages = new Set<number>();
   
+  // Security: Validate initial page index (getUint32 is always >= 0)
+  if (pageIndex * lenPage >= bufferLength) {
+    console.error(`parseTablePages: invalid initial page index ${pageIndex}`);
+    return;
+  }
+  
   while (pageIndex > 0 && !visitedPages.has(pageIndex)) {
     visitedPages.add(pageIndex);
     const pageOffset = pageIndex * lenPage;
     
-    if (pageOffset + lenPage > bufferLength) break;
+    // Security: Validate page offset and ensure full page is within bounds
+    if (pageOffset + lenPage > bufferLength) {
+      console.error(`parseTablePages: page ${pageIndex} offset ${pageOffset} out of bounds`);
+      break;
+    }
+    
+    // Security: Check minimum page size for header (40 bytes)
+    if (pageOffset + 40 > bufferLength) {
+      console.error(`parseTablePages: insufficient space for page header at offset ${pageOffset}`);
+      break;
+    }
     
     // Parse page header
     // Bytes 0-3: gap (zeros)
@@ -298,8 +401,14 @@ function parseTablePages(
     
     // Read the packed bits for row counts
     const packedRowInfo = dataView.getUint32(pageOffset + 24, true);
-    const numRowOffsets = packedRowInfo & 0x1FFF; // Lower 13 bits
+    const numRowOffsets = packedRowInfo & 0x1FFF; // Lower 13 bits (always >= 0)
     const pageFlags = dataView.getUint8(pageOffset + 27);
+    
+    // Security: Validate numRowOffsets is reasonable
+    if (numRowOffsets > 2000) {
+      console.error(`parseTablePages: invalid numRowOffsets ${numRowOffsets} at page ${pageIndex}`);
+      break;
+    }
     
     // Check if this is a data page (bit 0x40 not set means it's a data page)
     const isDataPage = (pageFlags & 0x40) === 0;
@@ -313,6 +422,12 @@ function parseTablePages(
       for (let groupIndex = 0; groupIndex < numRowGroups; groupIndex++) {
         const groupBase = pageOffset + lenPage - (groupIndex * 0x24);
         
+        // Security: Validate groupBase is within page bounds
+        if (groupBase < pageOffset || groupBase > pageOffset + lenPage) {
+          console.error(`parseTablePages: invalid groupBase ${groupBase} for group ${groupIndex}`);
+          continue;
+        }
+        
         // Row present flags at groupBase - 4
         if (groupBase - 4 < pageOffset + 40) continue;
         const rowPresentFlags = dataView.getUint16(groupBase - 4, true);
@@ -325,25 +440,45 @@ function parseTablePages(
           
           // Row offset is at groupBase - 6 - (rowIndex * 2)
           const ofsRowPos = groupBase - 6 - (rowIndex * 2);
-          if (ofsRowPos < pageOffset + 40) continue;
+          
+          // Security: Validate ofsRowPos is within bounds
+          if (ofsRowPos < pageOffset + 40 || ofsRowPos + 2 > pageOffset + lenPage) {
+            console.error(`parseTablePages: invalid ofsRowPos ${ofsRowPos} for row ${rowIndex}`);
+            continue;
+          }
           
           const ofsRow = dataView.getUint16(ofsRowPos, true);
           const rowBase = heapPos + ofsRow;
           
-          if (rowBase >= pageOffset + lenPage) continue;
+          // Security: Validate rowBase is within page bounds
+          if (rowBase < pageOffset + 40 || rowBase >= pageOffset + lenPage) {
+            console.error(`parseTablePages: invalid rowBase ${rowBase} for row ${rowIndex}`);
+            continue;
+          }
           
           try {
             rowCallback(rowBase, pageType);
-          } catch {
+          } catch (error) {
             // Skip malformed rows
+            console.error('Error parsing row at offset', rowBase, ':', error);
           }
         }
       }
     }
     
     // Move to next page
-    if (nextPageIndex === 0 || nextPageIndex >= bufferLength / lenPage) break;
+    // Security: Validate nextPageIndex (getUint32 is always >= 0)
+    if (nextPageIndex === 0 || nextPageIndex >= bufferLength / lenPage) {
+      break;
+    }
     if (pageIndex === table.lastPage) break;
+    
+    // Security: Prevent infinite loops
+    if (visitedPages.size > 10000) {
+      console.error('parseTablePages: too many pages visited, possible infinite loop');
+      break;
+    }
+    
     pageIndex = nextPageIndex;
   }
 }
@@ -359,56 +494,144 @@ function parseSimpleRow(
   keys: Map<number, string>,
   labels: Map<number, string>
 ) {
-  if (rowBase + 10 > bufferLength) return;
+  // Security: Validate minimum row size
+  if (rowBase + 10 > bufferLength) {
+    console.error(`parseSimpleRow: insufficient space at offset ${rowBase}`);
+    return;
+  }
   
   switch (pageType) {
     case PAGE_TYPE_ARTISTS: {
       // Artist row: subtype (u16), index_shift (u16), id (u32), 0x03 (u8), ofs_name_near (u8)
+      // Security: Validate space for artist row (minimum 10 bytes)
+      if (rowBase + 10 > bufferLength) {
+        console.error(`parseSimpleRow: insufficient space for artist row at offset ${rowBase}`);
+        return;
+      }
+      
       const subtype = dataView.getUint16(rowBase, true);
       const id = dataView.getUint32(rowBase + 4, true);
+      
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
+        console.error(`parseSimpleRow: invalid artist ID ${id}`);
+        return;
+      }
+      
       let nameOffset: number;
       if ((subtype & 0x04) === 0x04) {
         // Long offset at row + 0x0a
+        if (rowBase + 0x0c > bufferLength) {
+          console.error(`parseSimpleRow: insufficient space for long offset at ${rowBase + 0x0a}`);
+          return;
+        }
         nameOffset = dataView.getUint16(rowBase + 0x0a, true);
       } else {
         nameOffset = dataView.getUint8(rowBase + 9);
       }
+      
+      // Security: Validate nameOffset is within reasonable range (getUint16/getUint8 are always >= 0)
+      if (nameOffset > 10000) {
+        console.error(`parseSimpleRow: invalid name offset ${nameOffset} for artist`);
+        return;
+      }
+      
       const name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
       if (name) artists.set(id, name);
       break;
     }
     case PAGE_TYPE_ALBUMS: {
       // Album row: subtype (u16), index_shift (u16), unknown (u32), artist_id (u32), id (u32), unknown (u32), 0x03 (u8), ofs_name_near (u8)
+      // Security: Validate space for album row (minimum 18 bytes)
+      if (rowBase + 18 > bufferLength) {
+        console.error(`parseSimpleRow: insufficient space for album row at offset ${rowBase}`);
+        return;
+      }
+      
       const subtype = dataView.getUint16(rowBase, true);
       const id = dataView.getUint32(rowBase + 12, true);
+      
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
+        console.error(`parseSimpleRow: invalid album ID ${id}`);
+        return;
+      }
+      
       let nameOffset: number;
       if ((subtype & 0x04) === 0x04) {
         // Long offset at row + 0x16
+        if (rowBase + 0x18 > bufferLength) {
+          console.error(`parseSimpleRow: insufficient space for long offset at ${rowBase + 0x16}`);
+          return;
+        }
         nameOffset = dataView.getUint16(rowBase + 0x16, true);
       } else {
         nameOffset = dataView.getUint8(rowBase + 17);
       }
+      
+      // Security: Validate nameOffset is within reasonable range (getUint16/getUint8 are always >= 0)
+      if (nameOffset > 10000) {
+        console.error(`parseSimpleRow: invalid name offset ${nameOffset} for album`);
+        return;
+      }
+      
       const name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
       if (name) albums.set(id, name);
       break;
     }
     case PAGE_TYPE_GENRES: {
       // Genre row: id (u32), name (device_sql_string)
+      if (rowBase + 4 > bufferLength) {
+        console.error(`parseSimpleRow: insufficient space for genre row at offset ${rowBase}`);
+        return;
+      }
+      
       const id = dataView.getUint32(rowBase, true);
+      
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
+        console.error(`parseSimpleRow: invalid genre ID ${id}`);
+        return;
+      }
+      
       const name = readDeviceSqlString(dataView, rowBase + 4, bufferLength);
       if (name) genres.set(id, name);
       break;
     }
     case PAGE_TYPE_KEYS: {
       // Key row: id (u32), id2 (u32), name (device_sql_string)
+      if (rowBase + 8 > bufferLength) {
+        console.error(`parseSimpleRow: insufficient space for key row at offset ${rowBase}`);
+        return;
+      }
+      
       const id = dataView.getUint32(rowBase, true);
+      
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
+        console.error(`parseSimpleRow: invalid key ID ${id}`);
+        return;
+      }
+      
       const name = readDeviceSqlString(dataView, rowBase + 8, bufferLength);
       if (name) keys.set(id, name);
       break;
     }
     case PAGE_TYPE_LABELS: {
       // Label row: id (u32), name (device_sql_string)
+      if (rowBase + 4 > bufferLength) {
+        console.error(`parseSimpleRow: insufficient space for label row at offset ${rowBase}`);
+        return;
+      }
+      
       const id = dataView.getUint32(rowBase, true);
+      
+      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
+      if (id === 0) {
+        console.error(`parseSimpleRow: invalid label ID ${id}`);
+        return;
+      }
+      
       const name = readDeviceSqlString(dataView, rowBase + 4, bufferLength);
       if (name) labels.set(id, name);
       break;
@@ -422,13 +645,24 @@ function parsePlaylistTreeRow(
   bufferLength: number,
   playlistTree: Map<number, { name: string; parentId: number; isFolder: boolean; sortOrder: number }>
 ) {
-  if (rowBase + 20 > bufferLength) return;
+  // Security: Validate minimum row size
+  if (rowBase + 20 > bufferLength) {
+    console.error(`parsePlaylistTreeRow: insufficient space at offset ${rowBase}`);
+    return;
+  }
   
   // Playlist tree row: parent_id (u32), unknown (u32), sort_order (u32), id (u32), raw_is_folder (u32), name
   const parentId = dataView.getUint32(rowBase, true);
   const sortOrder = dataView.getUint32(rowBase + 8, true);
   const id = dataView.getUint32(rowBase + 12, true);
   const rawIsFolder = dataView.getUint32(rowBase + 16, true);
+  
+  // Security: Validate IDs are reasonable (getUint32 always returns 0-0xFFFFFFFF)
+  if (id === 0) {
+    console.error(`parsePlaylistTreeRow: invalid playlist ID ${id}`);
+    return;
+  }
+  
   const name = readDeviceSqlString(dataView, rowBase + 20, bufferLength);
   
   if (name && id > 0) {
@@ -444,12 +678,29 @@ function parsePlaylistTreeRow(
 function parsePlaylistEntryRow(
   dataView: DataView,
   rowBase: number,
+  bufferLength: number,
   playlistEntries: Map<number, { trackId: number; position: number }[]>
 ) {
+  // Security: Validate minimum row size
+  if (rowBase + 12 > bufferLength) {
+    console.error(`parsePlaylistEntryRow: insufficient space at offset ${rowBase}`);
+    return;
+  }
+  
   // Playlist entry row: entry_index (u32), track_id (u32), playlist_id (u32)
   const entryIndex = dataView.getUint32(rowBase, true);
   const trackId = dataView.getUint32(rowBase + 4, true);
   const playlistId = dataView.getUint32(rowBase + 8, true);
+  
+  // Security: Validate IDs are reasonable and positive (getUint32 always returns 0-0xFFFFFFFF)
+  if (playlistId === 0) {
+    console.error(`parsePlaylistEntryRow: invalid playlist ID ${playlistId}`);
+    return;
+  }
+  if (trackId === 0) {
+    console.error(`parsePlaylistEntryRow: invalid track ID ${trackId}`);
+    return;
+  }
   
   if (playlistId > 0 && trackId > 0) {
     if (!playlistEntries.has(playlistId)) {
@@ -504,7 +755,11 @@ function parseTrackRow(
   // 0x5E-0x86: ofs_strings[21] (u16 each, 42 bytes total)
   // String offsets: [0]=isrc, [1]=texter, ..., [17]=title, [18]=unknown, [19]=filename, [20]=file_path
 
-  if (rowBase + 0x86 > bufferLength) return;
+  // Security: Validate minimum row size (0x86 = 134 bytes)
+  if (rowBase + 0x86 > bufferLength) {
+    console.error(`parseTrackRow: insufficient space at offset ${rowBase}`);
+    return;
+  }
   
   const tempo = dataView.getUint32(rowBase + 0x38, true);
   const genreId = dataView.getUint32(rowBase + 0x3C, true);
@@ -516,10 +771,48 @@ function parseTrackRow(
   const bitrate = dataView.getUint32(rowBase + 0x30, true);
   const keyId = dataView.getUint32(rowBase + 0x20, true);
   
+  // Security: Validate IDs and values are reasonable (getUint32 always returns 0-0xFFFFFFFF)
+  if (id === 0) {
+    console.error(`parseTrackRow: invalid track ID ${id}`);
+    return;
+  }
+  
+  // Security: Validate tempo is reasonable (0-500 BPM range, stored as BPM * 100)
+  if (tempo > 50000) {
+    console.error(`parseTrackRow: invalid tempo ${tempo} for track ${id}`);
+    return;
+  }
+  
+  // Security: Validate duration is reasonable (0-10 hours in seconds, getUint16 always >= 0)
+  if (duration > 36000) {
+    console.error(`parseTrackRow: invalid duration ${duration} for track ${id}`);
+    return;
+  }
+  
+  // Security: Validate rating (0-5 range typical for Rekordbox, getUint8 always >= 0)
+  if (rating > 255) {
+    console.error(`parseTrackRow: invalid rating ${rating} for track ${id}`);
+    return;
+  }
+  
+  // Security: Validate bitrate is reasonable (0-10000 kbps, getUint32 always >= 0)
+  if (bitrate > 10000) {
+    console.error(`parseTrackRow: invalid bitrate ${bitrate} for track ${id}`);
+    return;
+  }
+  
   // Read string offsets (21 u16 values starting at 0x5E)
   const ofsStrings: number[] = [];
   for (let i = 0; i < 21; i++) {
-    ofsStrings.push(dataView.getUint16(rowBase + 0x5E + (i * 2), true));
+    const offset = dataView.getUint16(rowBase + 0x5E + (i * 2), true);
+    
+    // Security: Validate offset is within reasonable range (getUint16 returns 0-65535)
+    if (offset > 10000) {
+      console.error(`parseTrackRow: invalid string offset ${offset} at index ${i} for track ${id}`);
+      ofsStrings.push(0);
+    } else {
+      ofsStrings.push(offset);
+    }
   }
   
   // Title is at index 17
@@ -557,7 +850,7 @@ function parseTrackRow(
 export async function listDirectory(directoryHandle: FileSystemDirectoryHandle): Promise<FileEntry[]> {
   const entries: FileEntry[] = [];
   
-  const dirEntries = (directoryHandle as any).entries() as AsyncIterableIterator<[string, FileSystemHandle]>;
+  const dirEntries = directoryHandle.entries();
   for await (const [name, handle] of dirEntries) {
     const entry: FileEntry = {
       name,
@@ -570,7 +863,8 @@ export async function listDirectory(directoryHandle: FileSystemDirectoryHandle):
       try {
         const file = await (handle as FileSystemFileHandle).getFile();
         entry.size = file.size;
-      } catch {
+      } catch (error) {
+        console.error('Error getting file size for', name, ':', error);
         entry.size = 0;
       }
     }
