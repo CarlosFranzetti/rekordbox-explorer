@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { RekordboxDatabase, USBStatus, FileEntry, Playlist, Track, SortColumn, SortDirection } from '@/types/rekordbox';
+import type { USBStatus, FileEntry, Playlist, Track, SortColumn, SortDirection } from '@/types/rekordbox';
 import { 
   findRekordboxDatabase, 
   fullScanForDatabase, 
@@ -114,15 +114,19 @@ export function useRekordbox() {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    // Find export.pdb file
-    let pdbFile: File | null = null;
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.name === 'export.pdb' || file.name === 'exportExt.pdb') {
-        pdbFile = file;
-        break;
-      }
-    }
+    const fileArray = Array.from(files);
+    const norm = (name: string) => name.toLowerCase();
+
+    // iOS/Safari can return slightly different names; be flexible.
+    const pdbCandidates = fileArray.filter((f) => norm(f.name).endsWith('.pdb') || norm(f.name).includes('.pdb'));
+    const preferredNames = new Set(['export.pdb', 'exportext.pdb']);
+
+    const pdbFile =
+      pdbCandidates.find((f) => preferredNames.has(norm(f.name))) ||
+      pdbCandidates.find((f) => norm(f.name).includes('export')) ||
+      pdbCandidates[0] ||
+      // As a last resort, try the single selected file (some iOS picks can drop extensions)
+      (fileArray.length === 1 ? fileArray[0] : null);
 
     if (!pdbFile) {
       setStatus({
