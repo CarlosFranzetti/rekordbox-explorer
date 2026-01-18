@@ -575,49 +575,65 @@ function parseSimpleRow(
       break;
     }
     case PAGE_TYPE_ALBUMS: {
-      // Album row structure (from Kaitai spec):
-      // 0x00: subtype (u16)
-      // 0x02: index_shift (u16)
-      // 0x04: unknown (u32)
-      // 0x08: artist_id (u32)
-      // 0x0C: id (u32)
-      // 0x10: unknown (u32)
-      // 0x14: unknown (u8) - should be 0x03
-      // 0x15: ofs_name_near (u8)
-      // Security: Validate space for album row (minimum 22 bytes for near offset)
+      // Album row structure - try multiple known layouts
+      // Security: Validate space for album row
       if (rowBase + 22 > bufferLength) {
-        console.error(`parseSimpleRow: insufficient space for album row at offset ${rowBase}`);
         return;
       }
       
       const subtype = dataView.getUint16(rowBase, true);
-      const id = dataView.getUint32(rowBase + 0x0C, true);
       
-      // Security: Validate ID is reasonable
+      // Try reading ID from offset 0x0C (standard location)
+      let id = dataView.getUint32(rowBase + 0x0C, true);
+      
+      // If ID is 0, try alternate offset 0x04 (some versions use this)
       if (id === 0) {
-        return; // Skip invalid entries silently as ID 0 means no album
+        id = dataView.getUint32(rowBase + 0x04, true);
       }
       
-      let nameOffset: number;
-      if ((subtype & 0x100) !== 0) {
-        // Long offset: 2-byte offset at row + 0x16
-        if (rowBase + 0x18 > bufferLength) {
-          console.error(`parseSimpleRow: insufficient space for long offset at ${rowBase + 0x16}`);
-          return;
+      if (id === 0) {
+        return; // Skip entries with no valid ID
+      }
+      
+      // Try multiple name offset strategies
+      let name = '';
+      
+      // Strategy 1: Check for long offset flag (bit 0x100)
+      if ((subtype & 0x100) !== 0 && rowBase + 0x18 <= bufferLength) {
+        const nameOffset = dataView.getUint16(rowBase + 0x16, true);
+        if (nameOffset > 0 && nameOffset < 1000) {
+          name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
         }
-        nameOffset = dataView.getUint16(rowBase + 0x16, true);
-      } else {
-        // Near offset at row + 0x15
-        nameOffset = dataView.getUint8(rowBase + 0x15);
       }
       
-      // Security: Validate nameOffset is within reasonable range
-      if (nameOffset === 0 || nameOffset > 10000) {
-        return;
+      // Strategy 2: Near offset at 0x15 (common)
+      if (!name && rowBase + 0x16 <= bufferLength) {
+        const nameOffset = dataView.getUint8(rowBase + 0x15);
+        if (nameOffset > 0 && nameOffset < 200) {
+          name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
+        }
       }
       
-      const name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
-      if (name) albums.set(id, name);
+      // Strategy 3: Near offset at byte 17 (legacy)
+      if (!name && rowBase + 18 <= bufferLength) {
+        const nameOffset = dataView.getUint8(rowBase + 17);
+        if (nameOffset > 0 && nameOffset < 200) {
+          name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
+        }
+      }
+      
+      // Strategy 4: Check subtype 0x04 flag for long offset
+      if (!name && (subtype & 0x04) !== 0 && rowBase + 0x18 <= bufferLength) {
+        const nameOffset = dataView.getUint16(rowBase + 0x16, true);
+        if (nameOffset > 0 && nameOffset < 1000) {
+          name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
+        }
+      }
+      
+      if (name) {
+        albums.set(id, name);
+        console.log(`Album parsed: id=${id}, name="${name}"`);
+      }
       break;
     }
     case PAGE_TYPE_GENRES: {

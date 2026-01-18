@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
-export type ColorScheme = 'light' | 'dark' | 'arctic' | 'midnight';
+export type ColorScheme = 'dark' | 'midnight' | 'light' | 'arctic';
 
 interface SettingsPanelProps {
   colorScheme: ColorScheme;
@@ -15,10 +15,10 @@ interface SettingsPanelProps {
 }
 
 const schemes: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: 'Sepia', icon: Sun },
   { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'arctic', label: 'Arctic', icon: Monitor },
   { value: 'midnight', label: 'Midnight', icon: Moon },
+  { value: 'light', label: 'Sepia', icon: Sun },
+  { value: 'arctic', label: 'Arctic', icon: Sun },
 ];
 
 export function SettingsPanel({
