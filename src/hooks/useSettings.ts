@@ -38,7 +38,7 @@ export function useSettings() {
   // Apply color scheme to document
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove('theme-dark', 'theme-light', 'theme-midnight');
+    root.classList.remove('theme-dark', 'theme-light', 'theme-arctic', 'theme-midnight');
     root.classList.add(`theme-${settings.colorScheme}`);
   }, [settings.colorScheme]);
 
