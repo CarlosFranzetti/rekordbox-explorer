@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatDuration, formatBpm } from '@/lib/rekordbox-parser';
 import type { Track, SortColumn, SortDirection } from '@/types/rekordbox';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TrackTableProps {
   tracks: Track[];
@@ -19,13 +19,21 @@ interface ColumnConfig {
   minWidth: number;
 }
 
-const COLUMNS: ColumnConfig[] = [
-  { key: 'title', label: 'Title', defaultWidth: 280, minWidth: 100 },
-  { key: 'artist', label: 'Artist', defaultWidth: 200, minWidth: 80 },
-  { key: 'album', label: 'Album', defaultWidth: 200, minWidth: 80 },
-  { key: 'duration', label: 'Duration', defaultWidth: 90, minWidth: 70 },
-  { key: 'bpm', label: 'BPM', defaultWidth: 70, minWidth: 50 },
-  { key: 'key', label: 'Key', defaultWidth: 60, minWidth: 50 },
+// Desktop: Title, Artist, Album, Genre, Duration, BPM
+const DESKTOP_COLUMNS: ColumnConfig[] = [
+  { key: 'title', label: 'Title', defaultWidth: 280, minWidth: 140 },
+  { key: 'artist', label: 'Artist', defaultWidth: 200, minWidth: 120 },
+  { key: 'album', label: 'Album', defaultWidth: 200, minWidth: 120 },
+  { key: 'genre', label: 'Genre', defaultWidth: 140, minWidth: 100 },
+  { key: 'duration', label: 'Duration', defaultWidth: 90, minWidth: 80 },
+  { key: 'bpm', label: 'BPM', defaultWidth: 80, minWidth: 70 },
+];
+
+// Mobile/iOS: Title, Artist, Album only (no splitters, optimized for readability)
+const MOBILE_COLUMNS: ColumnConfig[] = [
+  { key: 'title', label: 'Title', defaultWidth: 160, minWidth: 100 },
+  { key: 'artist', label: 'Artist', defaultWidth: 120, minWidth: 80 },
+  { key: 'album', label: 'Album', defaultWidth: 120, minWidth: 80 },
 ];
 
 interface ResizeHandleProps {
@@ -36,45 +44,58 @@ function ResizeHandle({ onResizeStart }: ResizeHandleProps) {
   return (
     <div
       onMouseDown={onResizeStart}
-      className="absolute right-0 top-0 z-10 flex h-full w-2 cursor-col-resize items-center justify-center bg-transparent hover:bg-white/20 active:bg-white/30"
+      className="absolute right-0 top-0 z-10 flex h-full w-2 cursor-col-resize items-center justify-center bg-transparent hover:bg-primary-foreground/10 active:bg-primary-foreground/15"
     >
-      <GripVertical className="h-4 w-4 text-white/40" />
+      <GripVertical className="h-4 w-4 text-primary-foreground/50" />
     </div>
   );
 }
 
 export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackTableProps) {
-  const [columnWidths, setColumnWidths] = useState<Record<SortColumn, number>>(() =>
-    COLUMNS.reduce((acc, col) => ({ ...acc, [col.key]: col.defaultWidth }), {} as Record<SortColumn, number>)
+  const isMobile = useIsMobile();
+
+  const activeColumns = useMemo(() => (isMobile ? MOBILE_COLUMNS : DESKTOP_COLUMNS), [isMobile]);
+
+  // Store widths for all possible columns (desktop set)
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() =>
+    DESKTOP_COLUMNS.reduce(
+      (acc, col) => ({ ...acc, [col.key]: col.defaultWidth }),
+      {} as Record<string, number>
+    )
   );
-  const draggingRef = useRef<{ key: SortColumn; startX: number; startWidth: number } | null>(null);
 
-  const handleResizeStart = useCallback((columnKey: SortColumn, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    draggingRef.current = {
-      key: columnKey,
-      startX: e.clientX,
-      startWidth: columnWidths[columnKey],
-    };
+  const draggingRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
 
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      if (!draggingRef.current) return;
-      const col = COLUMNS.find((c) => c.key === draggingRef.current!.key);
-      const delta = moveEvent.clientX - draggingRef.current.startX;
-      const newWidth = Math.max(col?.minWidth ?? 50, draggingRef.current.startWidth + delta);
-      setColumnWidths((prev) => ({ ...prev, [draggingRef.current!.key]: newWidth }));
-    };
+  const handleResizeStart = useCallback(
+    (columnKey: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    const onMouseUp = () => {
-      draggingRef.current = null;
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-    };
+      draggingRef.current = {
+        key: columnKey,
+        startX: e.clientX,
+        startWidth: columnWidths[columnKey] ?? 100,
+      };
 
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-  }, [columnWidths]);
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        if (!draggingRef.current) return;
+        const col = DESKTOP_COLUMNS.find((c) => c.key === draggingRef.current!.key);
+        const delta = moveEvent.clientX - draggingRef.current.startX;
+        const newWidth = Math.max(col?.minWidth ?? 60, draggingRef.current.startWidth + delta);
+        setColumnWidths((prev) => ({ ...prev, [draggingRef.current!.key]: newWidth }));
+      };
+
+      const onMouseUp = () => {
+        draggingRef.current = null;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    },
+    [columnWidths]
+  );
 
   if (tracks.length === 0) {
     return (
@@ -84,76 +105,135 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackT
     );
   }
 
-  const totalWidth = Object.values(columnWidths).reduce((sum, w) => sum + w, 0);
+  // On mobile, use flexible widths; on desktop, use fixed widths from state
+  const totalWidth = isMobile
+    ? undefined
+    : activeColumns.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* Fixed Header */}
-      <div className="shrink-0 overflow-x-auto bg-primary">
-        <div style={{ minWidth: totalWidth }}>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-none hover:bg-transparent">
-                {COLUMNS.map((col) => (
-                  <TableHead
-                    key={col.key}
-                    className="relative h-10 cursor-pointer select-none border-none bg-primary text-primary-foreground hover:bg-primary/90"
-                    style={{ width: columnWidths[col.key], minWidth: col.minWidth }}
-                    onClick={() => onSort(col.key)}
-                  >
-                    <div className="flex items-center gap-1 pr-4">
-                      <span style={{ fontSize: 'var(--table-font-size)' }}>{col.label}</span>
-                      {sortColumn === col.key &&
-                        (sortDirection === 'asc' ? (
-                          <ArrowUp className="h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3" />
-                        ))}
-                    </div>
-                    <ResizeHandle onResizeStart={(e) => handleResizeStart(col.key, e)} />
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-          </Table>
-        </div>
-      </div>
+    <div className="h-full overflow-auto">
+      <table
+        className={`w-full caption-bottom text-sm ${isMobile ? '' : 'table-fixed'}`}
+        style={totalWidth ? { minWidth: totalWidth } : undefined}
+      >
+        {/* colgroup ensures header and body columns share widths */}
+        {!isMobile && (
+          <colgroup>
+            {activeColumns.map((c) => (
+              <col key={c.key} style={{ width: columnWidths[c.key] ?? c.defaultWidth }} />
+            ))}
+          </colgroup>
+        )}
 
-      {/* Scrollable Body */}
-      <div className="flex-1 overflow-auto">
-        <div style={{ minWidth: totalWidth }}>
-          <Table>
-            <TableBody>
-              {tracks.map((track, index) => (
-                <TableRow
-                  key={track.id || index}
-                  className="border-border transition-colors hover:bg-row-hover"
-                  style={{ fontSize: 'var(--table-font-size)' }}
-                >
-                  <TableCell style={{ width: columnWidths.title }} className="truncate font-medium">
-                    {track.title || 'Unknown'}
-                  </TableCell>
-                  <TableCell style={{ width: columnWidths.artist }} className="truncate text-muted-foreground">
-                    {track.artist || 'Unknown'}
-                  </TableCell>
-                  <TableCell style={{ width: columnWidths.album }} className="truncate text-muted-foreground">
-                    {track.album || ''}
-                  </TableCell>
-                  <TableCell style={{ width: columnWidths.duration }} className="tabular-nums text-muted-foreground">
-                    {formatDuration(track.duration)}
-                  </TableCell>
-                  <TableCell style={{ width: columnWidths.bpm }} className="tabular-nums text-muted-foreground">
-                    {formatBpm(track.bpm)}
-                  </TableCell>
-                  <TableCell style={{ width: columnWidths.key }} className="text-muted-foreground">
-                    {track.key || ''}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+        <TableHeader className="sticky top-0 z-20 bg-primary">
+          <TableRow className="border-none hover:bg-transparent">
+            {activeColumns.map((col, idx) => (
+              <TableHead
+                key={col.key}
+                className="relative h-10 cursor-pointer select-none border-none bg-primary text-primary-foreground hover:bg-primary/90"
+                style={isMobile ? undefined : { width: columnWidths[col.key] ?? col.defaultWidth }}
+                onClick={() => onSort(col.key)}
+              >
+                <div className="flex items-center gap-1 pr-4">
+                  <span
+                    className={isMobile ? 'text-xs' : ''}
+                    style={isMobile ? undefined : { fontSize: 'var(--table-font-size)' }}
+                  >
+                    {col.label}
+                  </span>
+                  {sortColumn === col.key &&
+                    (sortDirection === 'asc' ? (
+                      <ArrowUp className="h-3 w-3 shrink-0" />
+                    ) : (
+                      <ArrowDown className="h-3 w-3 shrink-0" />
+                    ))}
+                </div>
+
+                {/* Resize handles only on desktop, not for last column */}
+                {!isMobile && idx < activeColumns.length - 1 && (
+                  <ResizeHandle onResizeStart={(e) => handleResizeStart(col.key, e)} />
+                )}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+
+        <TableBody>
+          {tracks.map((track, index) => (
+            <TableRow
+              key={track.id || index}
+              className="border-border transition-colors hover:bg-row-hover"
+              style={isMobile ? undefined : { fontSize: 'var(--table-font-size)' }}
+            >
+              {activeColumns.map((col) => {
+                const cellStyle = isMobile ? undefined : { width: columnWidths[col.key] ?? col.defaultWidth };
+                const mobileClass = isMobile ? 'text-xs py-2 px-2' : '';
+
+                switch (col.key) {
+                  case 'title':
+                    return (
+                      <TableCell key="title" style={cellStyle} className={`truncate font-medium ${mobileClass}`}>
+                        {track.title || 'Unknown'}
+                      </TableCell>
+                    );
+                  case 'artist':
+                    return (
+                      <TableCell
+                        key="artist"
+                        style={cellStyle}
+                        className={`truncate text-muted-foreground ${mobileClass}`}
+                      >
+                        {track.artist || 'Unknown'}
+                      </TableCell>
+                    );
+                  case 'album':
+                    return (
+                      <TableCell
+                        key="album"
+                        style={cellStyle}
+                        className={`truncate text-muted-foreground ${mobileClass}`}
+                      >
+                        {track.album || ''}
+                      </TableCell>
+                    );
+                  case 'genre':
+                    return (
+                      <TableCell
+                        key="genre"
+                        style={cellStyle}
+                        className={`truncate text-muted-foreground ${mobileClass}`}
+                      >
+                        {track.genre || ''}
+                      </TableCell>
+                    );
+                  case 'duration':
+                    return (
+                      <TableCell
+                        key="duration"
+                        style={cellStyle}
+                        className={`tabular-nums text-muted-foreground ${mobileClass}`}
+                      >
+                        {formatDuration(track.duration)}
+                      </TableCell>
+                    );
+                  case 'bpm':
+                    return (
+                      <TableCell
+                        key="bpm"
+                        style={cellStyle}
+                        className={`tabular-nums text-muted-foreground ${mobileClass}`}
+                      >
+                        {formatBpm(track.bpm)}
+                      </TableCell>
+                    );
+                  default:
+                    return null;
+                }
+              })}
+            </TableRow>
+          ))}
+        </TableBody>
+      </table>
     </div>
   );
 }
