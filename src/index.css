@@ -86,30 +86,56 @@
     --row-hover: 220 15% 12%;
   }
 
-  /* Light theme (warm sepia - dimmed) */
+  /* Light theme (warm sepia - extra dimmed) */
   .theme-light {
-    --background: 38 32% 82%;
-    --foreground: 25 25% 15%;
-    --card: 40 28% 84%;
-    --card-foreground: 25 25% 15%;
-    --popover: 40 28% 84%;
-    --popover-foreground: 25 25% 15%;
-    --primary: 200 70% 32%;
-    --primary-foreground: 40 28% 92%;
-    --secondary: 35 22% 76%;
-    --secondary-foreground: 25 25% 18%;
-    --muted: 35 20% 78%;
-    --muted-foreground: 25 12% 38%;
-    --accent: 200 55% 36%;
-    --accent-foreground: 40 28% 92%;
-    --border: 35 16% 70%;
-    --input: 35 20% 76%;
-    --sidebar-background: 38 30% 80%;
-    --sidebar-foreground: 25 20% 20%;
-    --sidebar-accent: 35 20% 74%;
-    --sidebar-accent-foreground: 25 25% 15%;
-    --sidebar-border: 35 16% 70%;
-    --row-hover: 35 20% 78%;
+    --background: 38 28% 72%;
+    --foreground: 25 30% 12%;
+    --card: 40 24% 74%;
+    --card-foreground: 25 30% 12%;
+    --popover: 40 24% 74%;
+    --popover-foreground: 25 30% 12%;
+    --primary: 200 65% 28%;
+    --primary-foreground: 40 24% 90%;
+    --secondary: 35 20% 66%;
+    --secondary-foreground: 25 30% 15%;
+    --muted: 35 18% 68%;
+    --muted-foreground: 25 15% 35%;
+    --accent: 200 50% 32%;
+    --accent-foreground: 40 24% 90%;
+    --border: 35 14% 60%;
+    --input: 35 18% 66%;
+    --sidebar-background: 38 26% 70%;
+    --sidebar-foreground: 25 25% 18%;
+    --sidebar-accent: 35 18% 64%;
+    --sidebar-accent-foreground: 25 30% 12%;
+    --sidebar-border: 35 14% 60%;
+    --row-hover: 35 18% 68%;
+  }
+
+  /* Arctic theme (cool light) */
+  .theme-arctic {
+    --background: 210 25% 75%;
+    --foreground: 215 30% 12%;
+    --card: 210 22% 77%;
+    --card-foreground: 215 30% 12%;
+    --popover: 210 22% 77%;
+    --popover-foreground: 215 30% 12%;
+    --primary: 200 70% 30%;
+    --primary-foreground: 210 22% 92%;
+    --secondary: 210 18% 68%;
+    --secondary-foreground: 215 30% 15%;
+    --muted: 210 16% 70%;
+    --muted-foreground: 215 15% 38%;
+    --accent: 200 55% 35%;
+    --accent-foreground: 210 22% 92%;
+    --border: 210 14% 62%;
+    --input: 210 16% 68%;
+    --sidebar-background: 210 23% 73%;
+    --sidebar-foreground: 215 25% 18%;
+    --sidebar-accent: 210 16% 66%;
+    --sidebar-accent-foreground: 215 30% 12%;
+    --sidebar-border: 210 14% 62%;
+    --row-hover: 210 16% 70%;
   }
 
   /* Midnight theme (deeper dark) */
