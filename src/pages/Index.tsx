@@ -31,6 +31,7 @@ const Index = () => {
     return (
       <LibraryView
         database={status.database}
+        libraries={status.libraries}
         selectedPlaylist={selectedPlaylist}
         onSelectPlaylist={setSelectedPlaylist}
         searchQuery={searchQuery}

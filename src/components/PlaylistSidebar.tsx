@@ -3,11 +3,18 @@ import { ChevronRight, ChevronDown, Folder, FolderOpen, Music, ListMusic, Files,
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { Playlist, ViewMode } from '@/types/rekordbox';
+import type { Playlist, ViewMode, LibraryPresence } from '@/types/rekordbox';
 import { SettingsPanel, type ColorScheme } from './SettingsPanel';
+import { Monitor, HelpCircle, HardDrive } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface PlaylistSidebarProps {
   playlists: Playlist[];
+  libraries?: LibraryPresence;
   selectedPlaylist: Playlist | null;
   onSelectPlaylist: (playlist: Playlist | null) => void;
   viewMode: ViewMode;
@@ -96,8 +103,45 @@ function PlaylistItem({ playlist, depth, selectedId, onSelect }: PlaylistItemPro
   );
 }
 
+function CompatibilityIndicator({ libraries }: { libraries?: LibraryPresence }) {
+  if (!libraries) return null;
+
+  let label = "Unknown";
+  let description = "Unable to determine compatibility.";
+  let icon = <HelpCircle className="h-4 w-4 text-muted-foreground" />;
+
+  if (libraries.hasLegacy && libraries.hasPlus) {
+    label = "Universal";
+    description = "Compatible with all Rekordbox devices (CDJ-2000/NXS/3000/Opus)";
+    icon = <Monitor className="h-4 w-4 text-green-500" />;
+  } else if (libraries.hasLegacy) {
+    label = "Standard";
+    description = "Compatible with CDJ-2000, 900, NXS, XDJ series. Not optimized for Opus-Quad.";
+    icon = <Monitor className="h-4 w-4 text-blue-500" />;
+  } else if (libraries.hasPlus) {
+    label = "Modern";
+    description = "Compatible with CDJ-3000 and Opus-Quad only. Not readable by older CDJs.";
+    icon = <Monitor className="h-4 w-4 text-orange-500" />;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center gap-2 px-2 py-1 text-xs cursor-help hover:bg-sidebar-accent rounded-md transition-colors">
+          {icon}
+          <span className="font-medium text-muted-foreground">{label}</span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        <p>{description}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function PlaylistSidebar({
   playlists,
+  libraries,
   selectedPlaylist,
   onSelectPlaylist,
   viewMode,
@@ -184,7 +228,7 @@ export function PlaylistSidebar({
       </ScrollArea>
 
       {/* Settings button in bottom left */}
-      <div className="border-t border-sidebar-border p-2">
+      <div className="border-t border-sidebar-border p-2 space-y-2">
         <SettingsPanel
           colorScheme={colorScheme}
           onColorSchemeChange={onColorSchemeChange}
@@ -193,6 +237,7 @@ export function PlaylistSidebar({
           hiddenColumns={hiddenColumns}
           onToggleColumn={onToggleColumn}
         />
+        <CompatibilityIndicator libraries={libraries} />
       </div>
     </div>
   );

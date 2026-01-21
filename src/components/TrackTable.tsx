@@ -23,16 +23,16 @@ interface ColumnConfig {
   minWidth: number;
 }
 
-// Desktop: Title, Artist, Album, Genre, Duration, BPM
+// Desktop: Title, Artist, Album, Genre, Duration, BPM, Year, Label
 const DESKTOP_COLUMNS: ColumnConfig[] = [
   { key: 'title', label: 'Title', defaultWidth: 280, minWidth: 140 },
   { key: 'artist', label: 'Artist', defaultWidth: 200, minWidth: 120 },
   { key: 'album', label: 'Album', defaultWidth: 200, minWidth: 120 },
-  { key: 'label', label: 'Label', defaultWidth: 150, minWidth: 100 },
   { key: 'genre', label: 'Genre', defaultWidth: 140, minWidth: 100 },
-  { key: 'year', label: 'Year', defaultWidth: 60, minWidth: 50 },
   { key: 'duration', label: 'Duration', defaultWidth: 90, minWidth: 80 },
   { key: 'bpm', label: 'BPM', defaultWidth: 80, minWidth: 70 },
+  { key: 'year', label: 'Year', defaultWidth: 60, minWidth: 50 },
+  { key: 'label', label: 'Label', defaultWidth: 150, minWidth: 100 },
 ];
 
 // Mobile/iOS: Title, Artist, Album only (no splitters, optimized for readability)
