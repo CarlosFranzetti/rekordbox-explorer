@@ -7,10 +7,10 @@ import type { Playlist, ViewMode, LibraryPresence } from '@/types/rekordbox';
 import { SettingsPanel, type ColorScheme } from './SettingsPanel';
 import { Monitor, HelpCircle, HardDrive } from 'lucide-react';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 interface PlaylistSidebarProps {
   playlists: Playlist[];
@@ -125,17 +125,20 @@ function CompatibilityIndicator({ libraries }: { libraries?: LibraryPresence }) 
   }
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center gap-2 px-2 py-1 text-xs cursor-help hover:bg-sidebar-accent rounded-md transition-colors">
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-sidebar-accent rounded-md transition-colors outline-none">
           {icon}
           <span className="font-medium text-muted-foreground">{label}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="right" className="w-64">
+        <div className="space-y-2">
+          <h4 className="font-medium leading-none">Compatibility</h4>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </div>
-      </TooltipTrigger>
-      <TooltipContent side="right">
-        <p>{description}</p>
-      </TooltipContent>
-    </Tooltip>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -228,7 +231,7 @@ export function PlaylistSidebar({
       </ScrollArea>
 
       {/* Settings button in bottom left */}
-      <div className="border-t border-sidebar-border p-2 space-y-2">
+      <div className="border-t border-sidebar-border p-2 flex items-center gap-2">
         <SettingsPanel
           colorScheme={colorScheme}
           onColorSchemeChange={onColorSchemeChange}
