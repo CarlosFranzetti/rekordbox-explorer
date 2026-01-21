@@ -99,7 +99,7 @@ export function useRekordbox() {
             }
           }
 
-          setStatus({ type: 'valid', database: mergedDb });
+          setStatus({ type: 'valid', database: mergedDb, libraries: result.libraries || { hasLegacy: true, hasPlus: false } });
 
           // Show success toast
           toast({
@@ -128,6 +128,7 @@ export function useRekordbox() {
         setStatus({
           type: 'partial',
           message: result.message || 'Partial Rekordbox structure found.',
+          libraries: result.libraries
         });
       } else {
         setStatus({
@@ -222,7 +223,11 @@ export function useRekordbox() {
         };
       }
 
-      setStatus({ type: 'valid', database: mergedDb });
+      setStatus({ 
+        type: 'valid', 
+        database: mergedDb,
+        libraries: { hasLegacy: true, hasPlus: false } 
+      });
 
       toast({
         title: 'Database Loaded',
@@ -265,7 +270,11 @@ export function useRekordbox() {
       
       if (result.found && result.handle) {
         const database = await parseRekordboxDatabase(result.handle);
-        setStatus({ type: 'valid', database });
+        setStatus({ 
+          type: 'valid', 
+          database,
+          libraries: { hasLegacy: true, hasPlus: false }
+        });
         
         // Show success toast
         toast({

@@ -1,7 +1,7 @@
-import { HardDrive, Usb, AlertCircle, Loader2, FileUp } from 'lucide-react';
+import { HardDrive, Usb, AlertCircle, Loader2, FileUp, CheckCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { USBStatus } from '@/types/rekordbox';
+import type { USBStatus, LibraryPresence } from '@/types/rekordbox';
 import { isFileSystemAccessSupported } from '@/hooks/useRekordbox';
 
 interface LandingScreenProps {
@@ -12,6 +12,49 @@ interface LandingScreenProps {
   onSelectFile?: () => void;
   fileInputRef?: React.RefObject<HTMLInputElement>;
   onFileInput?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+function CompatibilityInfo({ libraries }: { libraries: LibraryPresence }) {
+  if (!libraries) return null;
+
+  return (
+    <div className="mt-4 rounded-lg border bg-card p-4">
+      <h3 className="mb-3 font-medium flex items-center gap-2">
+        <Info className="h-4 w-4" />
+        USB Compatibility
+      </h3>
+      
+      <div className="space-y-3 text-sm">
+        <div className="flex items-start gap-2">
+          {libraries.hasLegacy ? (
+            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
+          ) : (
+            <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+          )}
+          <div>
+            <p className="font-medium">Legacy Library (export.pdb)</p>
+            <p className="text-muted-foreground text-xs">
+              Required for CDJ-2000NXS2, XDJ-1000MK2, XDJ-RX2, and older.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          {libraries.hasPlus ? (
+            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
+          ) : (
+            <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+          )}
+          <div>
+            <p className="font-medium">Device Library Plus</p>
+            <p className="text-muted-foreground text-xs">
+              Optimized for CDJ-3000, Opus-Quad, Omni-Duo.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onSelectFile, fileInputRef, onFileInput }: LandingScreenProps) {
@@ -90,6 +133,9 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
                   <p className="mt-1 text-sm text-muted-foreground">{status.message}</p>
                 </div>
               </div>
+              
+              {status.libraries && <CompatibilityInfo libraries={status.libraries} />}
+
               <div className="flex gap-2">
                 <Button 
                   onClick={onFullScan} 
@@ -158,6 +204,11 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
               )}
             </div>
           )}
+          
+          {/* Also show compatibility info if status is valid (though this component usually unmounts when valid, 
+              but in case we want to show it before transitioning or in a dialog, it's good to have. 
+              However, the app likely switches to the main view immediately. 
+              We might want to add a way to view this info in the main app later.) */}
 
           <p className="text-center text-xs text-muted-foreground">
             Looks for <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">PIONEER/rekordbox/export.pdb</code>

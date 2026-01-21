@@ -17,78 +17,90 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
   path?: string;
   partialMatch?: boolean;
   message?: string;
+  libraries?: { hasLegacy: boolean; hasPlus: boolean };
 }> {
-  // First, try the standard path: PIONEER/rekordbox/(export.pdb | exportExt.pdb)
+  let hasLegacy = false;
+  let hasPlus = false;
+  let legacyHandle: FileSystemFileHandle | undefined;
+  let legacyPath: string | undefined;
+
+  // Check for PIONEER folder
+  let pioneerDir: FileSystemDirectoryHandle | undefined;
   try {
-    const pioneerDir = await directoryHandle.getDirectoryHandle('PIONEER', { create: false });
-    const rekordboxDir = await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
+    pioneerDir = await directoryHandle.getDirectoryHandle('PIONEER', { create: false });
+  } catch (error) {
+    // PIONEER folder not found
+    console.error('PIONEER folder not found:', error);
+  }
 
-    // Prefer export.pdb (base DB) and fall back to exportExt.pdb (extended DB)
+  if (pioneerDir) {
+    // Check for Legacy (PIONEER/rekordbox)
     try {
-      const exportPdb = await rekordboxDir.getFileHandle('export.pdb', { create: false });
-      return {
-        found: true,
-        handle: exportPdb,
-        path: 'PIONEER/rekordbox/export.pdb',
-      };
-    } catch (error) {
-      console.error('export.pdb not found in PIONEER/rekordbox:', error);
-    }
-
-    // Some filesystems vary case; try common variants.
-    const exportExtNames = ['exportExt.pdb', 'exportext.pdb'];
-    for (const name of exportExtNames) {
+      const rekordboxDir = await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
+      
+      // Check for export.pdb
       try {
-        const exportExt = await rekordboxDir.getFileHandle(name, { create: false });
-        return {
-          found: true,
-          handle: exportExt,
-          path: `PIONEER/rekordbox/${name}`,
-        };
+        legacyHandle = await rekordboxDir.getFileHandle('export.pdb', { create: false });
+        hasLegacy = true;
+        legacyPath = 'PIONEER/rekordbox/export.pdb';
       } catch {
-        // continue
+        // Check for exportExt.pdb
+        const exportExtNames = ['exportExt.pdb', 'exportext.pdb'];
+        for (const name of exportExtNames) {
+          try {
+            legacyHandle = await rekordboxDir.getFileHandle(name, { create: false });
+            hasLegacy = true;
+            legacyPath = `PIONEER/rekordbox/${name}`;
+            break;
+          } catch {
+            // continue
+          }
+        }
       }
+    } catch (error) {
+      // rekordbox folder not found
     }
 
-    // rekordbox folder exists but neither DB file is present
+    // Check for Device Library Plus (PIONEER/DeviceLibraryPlus)
+    try {
+      // Note: Some sources suggest it's 'DeviceLibraryPlus' directly under PIONEER
+      // Others suggest checking for specific files inside.
+      // We will check for the folder existence as a primary indicator.
+      await pioneerDir.getDirectoryHandle('DeviceLibraryPlus', { create: false });
+      hasPlus = true;
+    } catch {
+      // DeviceLibraryPlus folder not found
+    }
+  }
+
+  const libraries = { hasLegacy, hasPlus };
+
+  if (hasLegacy && legacyHandle) {
+    return {
+      found: true,
+      handle: legacyHandle,
+      path: legacyPath,
+      libraries
+    };
+  }
+
+  if (hasPlus) {
+    // We found Plus but not Legacy. We can't parse Plus yet, so return partial/found=false but with info.
     return {
       found: false,
       partialMatch: true,
-      message:
-        'Rekordbox folder found but export.pdb/exportExt.pdb is missing. The USB may not have been exported from Rekordbox properly.',
+      message: 'Device Library Plus found, but Legacy library (export.pdb) is missing. This USB works with newer hardware (CDJ-3000, Opus-Quad) but may not work with older CDJs.',
+      libraries
     };
-  } catch (error) {
-    // Standard path not found, check for partial structure
-    console.error('Standard path (PIONEER/rekordbox) not found:', error);
   }
 
-  // Check if PIONEER folder exists
-  try {
-    const pioneerDir = await directoryHandle.getDirectoryHandle('PIONEER', { create: false });
-
-    // Check for rekordbox folder
-    try {
-      await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
-
-      // rekordbox folder exists but no export DB
-      return {
-        found: false,
-        partialMatch: true,
-        message:
-          'Rekordbox folder found but export.pdb/exportExt.pdb is missing. The USB may not have been exported from Rekordbox properly.',
-      };
-    } catch (error) {
-      // PIONEER exists but no rekordbox folder
-      console.error('Rekordbox folder not found in PIONEER directory:', error);
-      return {
-        found: false,
-        partialMatch: true,
-        message: 'PIONEER folder found but no rekordbox directory. Would you like to do a full scan?',
-      };
-    }
-  } catch (error) {
-    // No PIONEER folder at all
-    console.error('PIONEER folder not found:', error);
+  if (pioneerDir) {
+    return {
+      found: false,
+      partialMatch: true,
+      message: 'PIONEER folder found but no valid Rekordbox libraries detected.',
+      libraries
+    };
   }
 
   // Check for other DJ software folders (to give helpful message)
