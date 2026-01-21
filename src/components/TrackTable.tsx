@@ -13,6 +13,7 @@ interface TrackTableProps {
   sortColumn: SortColumn;
   sortDirection: SortDirection;
   onSort: (column: SortColumn) => void;
+  hiddenColumns: string[];
 }
 
 interface ColumnConfig {
@@ -87,7 +88,7 @@ function ResizeHandle({ onResizeStart }: ResizeHandleProps) {
   );
 }
 
-export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackTableProps) {
+export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenColumns }: TrackTableProps) {
   const isMobile = useIsMobile();
 
   // Load widths from localStorage on mount, fallback to defaults
@@ -102,8 +103,14 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackT
   const activeColumns = useMemo(() => {
     if (isMobile) return MOBILE_COLUMNS;
     
+    // Filter out hidden columns (but keep mandatory ones: title, artist, album)
+    const visibleColumns = DESKTOP_COLUMNS.filter(col => {
+      if (['title', 'artist', 'album'].includes(col.key)) return true;
+      return !hiddenColumns.includes(col.key);
+    });
+    
     // Return columns sorted by columnOrder
-    return [...DESKTOP_COLUMNS].sort((a, b) => {
+    return [...visibleColumns].sort((a, b) => {
       const idxA = columnOrder.indexOf(a.key);
       const idxB = columnOrder.indexOf(b.key);
       // If a new column is added but not in order, put it at the end
@@ -111,7 +118,7 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackT
       if (idxB === -1) return -1;
       return idxA - idxB;
     });
-  }, [isMobile, columnOrder]);
+  }, [isMobile, columnOrder, hiddenColumns]);
 
   // Persist order
   useEffect(() => {

@@ -46,7 +46,14 @@ export function LibraryView({
   onReset
 }: LibraryViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('library');
-  const { colorScheme, fontSize, setColorScheme, setFontSize } = useSettings();
+  const { 
+    colorScheme, 
+    fontSize, 
+    setColorScheme, 
+    setFontSize,
+    hiddenColumns,
+    toggleColumnVisibility
+  } = useSettings();
 
   // Load file entries when switching to files mode
   useEffect(() => {
@@ -73,6 +80,8 @@ export function LibraryView({
             onColorSchemeChange={setColorScheme}
             fontSize={fontSize}
             onFontSizeChange={setFontSize}
+            hiddenColumns={hiddenColumns}
+            onToggleColumn={toggleColumnVisibility}
           />
         </ResizablePanel>
 
@@ -100,7 +109,7 @@ export function LibraryView({
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => exportTracksToPdf(filteredTracks, currentPlaylistName)}
+                    onClick={() => exportTracksToPdf(filteredTracks, currentPlaylistName, hiddenColumns)}
                     title="Export to PDF"
                   >
                     <FileDown className="h-4 w-4" />
@@ -116,6 +125,7 @@ export function LibraryView({
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
                   onSort={onSort}
+                  hiddenColumns={hiddenColumns}
                 />
               ) : (
                 <FileBrowser

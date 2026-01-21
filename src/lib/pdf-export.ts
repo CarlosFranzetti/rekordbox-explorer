@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { Track } from '@/types/rekordbox';
 import { formatDuration, formatBpm } from '@/lib/rekordbox-parser';
 
-export function exportTracksToPdf(tracks: Track[], playlistName: string) {
+export function exportTracksToPdf(tracks: Track[], playlistName: string, hiddenColumns: string[] = []) {
   const doc = new jsPDF();
   
   // Title
@@ -14,20 +14,62 @@ export function exportTracksToPdf(tracks: Track[], playlistName: string) {
   doc.setTextColor(100);
   doc.text(`Total Tracks: ${tracks.length}`, 14, 30);
   
-  const tableColumn = ["Title", "Artist", "Album", "Genre", "BPM", "Key", "Duration"];
+  const allColumns = [
+    { key: 'title', title: "Title" },
+    { key: 'artist', title: "Artist" },
+    { key: 'album', title: "Album" },
+    { key: 'genre', title: "Genre" },
+    { key: 'bpm', title: "BPM" },
+    { key: 'key', title: "Key" },
+    { key: 'label', title: "Label" },
+    { key: 'year', title: "Year" },
+    { key: 'duration', title: "Duration" }
+  ];
+
+  // Filter columns
+  // Title, Artist, Album are mandatory
+  const mandatoryKeys = ['title', 'artist', 'album'];
+  const visibleColumns = allColumns.filter(col => 
+    mandatoryKeys.includes(col.key) || !hiddenColumns.includes(col.key)
+  );
+
+  const tableColumn = visibleColumns.map(col => col.title);
   const tableRows: string[][] = [];
 
   tracks.forEach(track => {
-    const trackData = [
-      track.title || "Unknown",
-      track.artist || "Unknown",
-      track.album || "",
-      track.genre || "",
-      formatBpm(track.bpm),
-      track.key || "",
-      formatDuration(track.duration)
-    ];
-    tableRows.push(trackData);
+    const rowData: string[] = [];
+    visibleColumns.forEach(col => {
+      switch (col.key) {
+        case 'title':
+          rowData.push(track.title || "Unknown");
+          break;
+        case 'artist':
+          rowData.push(track.artist || "Unknown");
+          break;
+        case 'album':
+          rowData.push(track.album || "");
+          break;
+        case 'genre':
+          rowData.push(track.genre || "");
+          break;
+        case 'bpm':
+          rowData.push(formatBpm(track.bpm));
+          break;
+        case 'key':
+          rowData.push(track.key || "");
+          break;
+        case 'label':
+          rowData.push(track.label || "");
+          break;
+        case 'year':
+          rowData.push(track.year ? track.year.toString() : "");
+          break;
+        case 'duration':
+          rowData.push(formatDuration(track.duration));
+          break;
+      }
+    });
+    tableRows.push(rowData);
   });
 
   autoTable(doc, {
