@@ -11,6 +11,8 @@ export interface Track {
   bitrate: number;
   filePath: string;
   dateAdded: Date;
+  label?: string;
+  year?: number;
 }
 
 export interface Playlist {
@@ -45,5 +47,5 @@ export type USBStatus =
 
 export type ViewMode = 'library' | 'files';
 
-export type SortColumn = 'title' | 'artist' | 'album' | 'genre' | 'duration' | 'bpm';
+export type SortColumn = 'title' | 'artist' | 'album' | 'genre' | 'duration' | 'bpm' | 'label' | 'year';
 export type SortDirection = 'asc' | 'desc';

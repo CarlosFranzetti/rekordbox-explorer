@@ -6,6 +6,7 @@ import type { Track, SortColumn, SortDirection } from '@/types/rekordbox';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const COLUMN_WIDTHS_KEY = 'rekordbox-column-widths';
+const COLUMN_ORDER_KEY = 'rekordbox-column-order';
 
 interface TrackTableProps {
   tracks: Track[];
@@ -26,7 +27,9 @@ const DESKTOP_COLUMNS: ColumnConfig[] = [
   { key: 'title', label: 'Title', defaultWidth: 280, minWidth: 140 },
   { key: 'artist', label: 'Artist', defaultWidth: 200, minWidth: 120 },
   { key: 'album', label: 'Album', defaultWidth: 200, minWidth: 120 },
+  { key: 'label', label: 'Label', defaultWidth: 150, minWidth: 100 },
   { key: 'genre', label: 'Genre', defaultWidth: 140, minWidth: 100 },
+  { key: 'year', label: 'Year', defaultWidth: 60, minWidth: 50 },
   { key: 'duration', label: 'Duration', defaultWidth: 90, minWidth: 80 },
   { key: 'bpm', label: 'BPM', defaultWidth: 80, minWidth: 70 },
 ];
@@ -57,6 +60,18 @@ function getDefaultWidths(): Record<string, number> {
   );
 }
 
+function getStoredColumnOrder(): string[] | null {
+  try {
+    const stored = localStorage.getItem(COLUMN_ORDER_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 interface ResizeHandleProps {
   onResizeStart: (e: React.MouseEvent) => void;
 }
@@ -75,12 +90,37 @@ function ResizeHandle({ onResizeStart }: ResizeHandleProps) {
 export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackTableProps) {
   const isMobile = useIsMobile();
 
-  const activeColumns = useMemo(() => (isMobile ? MOBILE_COLUMNS : DESKTOP_COLUMNS), [isMobile]);
-
   // Load widths from localStorage on mount, fallback to defaults
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(
     () => getStoredWidths() ?? getDefaultWidths()
   );
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(
+    () => getStoredColumnOrder() ?? DESKTOP_COLUMNS.map(c => c.key)
+  );
+
+  const activeColumns = useMemo(() => {
+    if (isMobile) return MOBILE_COLUMNS;
+    
+    // Return columns sorted by columnOrder
+    return [...DESKTOP_COLUMNS].sort((a, b) => {
+      const idxA = columnOrder.indexOf(a.key);
+      const idxB = columnOrder.indexOf(b.key);
+      // If a new column is added but not in order, put it at the end
+      if (idxA === -1) return 1;
+      if (idxB === -1) return -1;
+      return idxA - idxB;
+    });
+  }, [isMobile, columnOrder]);
+
+  // Persist order
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(columnOrder));
+    } catch {
+      // ignore
+    }
+  }, [columnOrder]);
 
   // Persist widths to localStorage whenever they change
   useEffect(() => {
@@ -92,6 +132,34 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackT
   }, [columnWidths]);
 
   const draggingRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, columnKey: string) => {
+    setDraggedColumn(columnKey);
+    e.dataTransfer.effectAllowed = 'move';
+    // Set transparent image or default
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetKey: string) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetKey) return;
+  };
+
+  const handleDrop = (e: React.DragEvent, targetKey: string) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetKey) return;
+
+    const newOrder = [...columnOrder];
+    const oldIndex = newOrder.indexOf(draggedColumn);
+    const newIndex = newOrder.indexOf(targetKey);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      newOrder.splice(oldIndex, 1);
+      newOrder.splice(newIndex, 0, draggedColumn);
+      setColumnOrder(newOrder);
+    }
+    setDraggedColumn(null);
+  };
 
   const handleResizeStart = useCallback(
     (columnKey: string, e: React.MouseEvent) => {
@@ -158,7 +226,13 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackT
             {activeColumns.map((col, idx) => (
               <TableHead
                 key={col.key}
-                className="relative h-10 cursor-pointer select-none border-none bg-primary text-primary-foreground hover:bg-primary/90"
+                draggable={!isMobile}
+                onDragStart={(e) => !isMobile && handleDragStart(e, col.key)}
+                onDragOver={(e) => !isMobile && handleDragOver(e, col.key)}
+                onDrop={(e) => !isMobile && handleDrop(e, col.key)}
+                className={`relative h-10 cursor-pointer select-none border-none bg-primary text-primary-foreground hover:bg-primary/90 ${
+                  draggedColumn === col.key ? 'opacity-50' : ''
+                }`}
                 style={isMobile ? undefined : { width: columnWidths[col.key] ?? col.defaultWidth }}
                 onClick={() => onSort(col.key)}
               >
@@ -232,6 +306,26 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort }: TrackT
                         className={`truncate text-muted-foreground ${mobileClass}`}
                       >
                         {track.genre || ''}
+                      </TableCell>
+                    );
+                  case 'label':
+                    return (
+                      <TableCell
+                        key="label"
+                        style={cellStyle}
+                        className={`truncate text-muted-foreground ${mobileClass}`}
+                      >
+                        {track.label || ''}
+                      </TableCell>
+                    );
+                  case 'year':
+                    return (
+                      <TableCell
+                        key="year"
+                        style={cellStyle}
+                        className={`tabular-nums text-muted-foreground ${mobileClass}`}
+                      >
+                        {track.year || ''}
                       </TableCell>
                     );
                   case 'duration':
