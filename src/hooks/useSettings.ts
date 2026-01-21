@@ -6,11 +6,13 @@ const STORAGE_KEY = 'rekordbox-viewer-settings';
 interface Settings {
   colorScheme: ColorScheme;
   fontSize: number;
+  hiddenColumns: string[];
 }
 
 const DEFAULT_SETTINGS: Settings = {
   colorScheme: 'dark',
   fontSize: 14,
+  hiddenColumns: [],
 };
 
 export function useSettings() {
@@ -55,10 +57,24 @@ export function useSettings() {
     setSettings((prev) => ({ ...prev, fontSize }));
   }, []);
 
+  const toggleColumnVisibility = useCallback((columnKey: string) => {
+    setSettings((prev) => {
+      const isHidden = prev.hiddenColumns.includes(columnKey);
+      return {
+        ...prev,
+        hiddenColumns: isHidden
+          ? prev.hiddenColumns.filter((key) => key !== columnKey)
+          : [...prev.hiddenColumns, columnKey],
+      };
+    });
+  }, []);
+
   return {
     colorScheme: settings.colorScheme,
     fontSize: settings.fontSize,
+    hiddenColumns: settings.hiddenColumns,
     setColorScheme,
     setFontSize,
+    toggleColumnVisibility,
   };
 }

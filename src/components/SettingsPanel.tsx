@@ -3,6 +3,7 @@ import { Settings, Sun, Moon, Monitor, Plus, Minus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 export type ColorScheme = 'dark' | 'midnight' | 'light' | 'arctic';
@@ -12,6 +13,8 @@ interface SettingsPanelProps {
   onColorSchemeChange: (scheme: ColorScheme) => void;
   fontSize: number;
   onFontSizeChange: (size: number) => void;
+  hiddenColumns: string[];
+  onToggleColumn: (key: string) => void;
 }
 
 const schemes: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
@@ -21,11 +24,22 @@ const schemes: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
   { value: 'arctic', label: 'Arctic', icon: Sun },
 ];
 
+const toggleableColumns = [
+  { key: 'genre', label: 'Genre' },
+  { key: 'bpm', label: 'BPM' },
+  { key: 'key', label: 'Key' },
+  { key: 'duration', label: 'Duration' },
+  { key: 'label', label: 'Label' },
+  { key: 'year', label: 'Year' },
+];
+
 export function SettingsPanel({
   colorScheme,
   onColorSchemeChange,
   fontSize,
   onFontSizeChange,
+  hiddenColumns,
+  onToggleColumn,
 }: SettingsPanelProps) {
   const [open, setOpen] = useState(false);
 
@@ -122,6 +136,31 @@ export function SettingsPanel({
           </div>
           <p className="text-xs text-muted-foreground">
             Use ⌘/Ctrl + / − to adjust
+          </p>
+        </div>
+
+        {/* Column Visibility */}
+        <div className="mt-4 space-y-2">
+          <Label className="text-sm text-muted-foreground">Visible Columns</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {toggleableColumns.map((col) => (
+              <div key={col.key} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`col-${col.key}`}
+                  checked={!hiddenColumns.includes(col.key)}
+                  onCheckedChange={() => onToggleColumn(col.key)}
+                />
+                <label
+                  htmlFor={`col-${col.key}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {col.label}
+                </label>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Title, Artist, and Album are always visible.
           </p>
         </div>
       </PopoverContent>

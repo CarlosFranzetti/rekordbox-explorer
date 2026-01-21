@@ -18,6 +18,8 @@ interface PlaylistSidebarProps {
   onColorSchemeChange: (scheme: ColorScheme) => void;
   fontSize: number;
   onFontSizeChange: (size: number) => void;
+  hiddenColumns: string[];
+  onToggleColumn: (key: string) => void;
 }
 
 interface PlaylistItemProps {
@@ -105,7 +107,9 @@ export function PlaylistSidebar({
   colorScheme,
   onColorSchemeChange,
   fontSize,
-  onFontSizeChange
+  onFontSizeChange,
+  hiddenColumns,
+  onToggleColumn
 }: PlaylistSidebarProps) {
   return (
     <div className="flex h-full w-full min-w-0 flex-col border-r border-sidebar-border bg-sidebar">
@@ -186,6 +190,8 @@ export function PlaylistSidebar({
           onColorSchemeChange={onColorSchemeChange}
           fontSize={fontSize}
           onFontSizeChange={onFontSizeChange}
+          hiddenColumns={hiddenColumns}
+          onToggleColumn={onToggleColumn}
         />
       </div>
     </div>
