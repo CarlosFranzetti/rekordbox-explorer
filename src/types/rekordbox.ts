@@ -37,11 +37,16 @@ export interface FileEntry {
   handle: FileSystemHandle;
 }
 
+export interface LibraryPresence {
+  hasLegacy: boolean;
+  hasPlus: boolean;
+}
+
 export type USBStatus = 
   | { type: 'idle' }
   | { type: 'loading' }
-  | { type: 'valid'; database: RekordboxDatabase }
-  | { type: 'partial'; message: string }
+  | { type: 'valid'; database: RekordboxDatabase; libraries: LibraryPresence }
+  | { type: 'partial'; message: string; libraries?: LibraryPresence }
   | { type: 'invalid'; message: string }
   | { type: 'error'; message: string };
 
