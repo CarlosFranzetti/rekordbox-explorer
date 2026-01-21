@@ -8,10 +8,11 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/useSettings';
 import { exportTracksToPdf } from '@/lib/pdf-export';
-import type { RekordboxDatabase, Playlist, Track, ViewMode, SortColumn, SortDirection, FileEntry } from '@/types/rekordbox';
+import type { RekordboxDatabase, Playlist, Track, ViewMode, SortColumn, SortDirection, FileEntry, LibraryPresence } from '@/types/rekordbox';
 
 interface LibraryViewProps {
   database: RekordboxDatabase;
+  libraries?: LibraryPresence;
   selectedPlaylist: Playlist | null;
   onSelectPlaylist: (playlist: Playlist | null) => void;
   searchQuery: string;
@@ -30,6 +31,7 @@ interface LibraryViewProps {
 
 export function LibraryView({
   database,
+  libraries,
   selectedPlaylist,
   onSelectPlaylist,
   searchQuery,
@@ -70,6 +72,7 @@ export function LibraryView({
         <ResizablePanel defaultSize={24} minSize={16} maxSize={40} className="min-w-0">
           <PlaylistSidebar
             playlists={database.playlists}
+            libraries={libraries}
             selectedPlaylist={selectedPlaylist}
             onSelectPlaylist={onSelectPlaylist}
             viewMode={viewMode}
