@@ -27,7 +27,6 @@ const schemes: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
 const toggleableColumns = [
   { key: 'genre', label: 'Genre' },
   { key: 'bpm', label: 'BPM' },
-  { key: 'key', label: 'Key' },
   { key: 'duration', label: 'Duration' },
   { key: 'label', label: 'Label' },
   { key: 'year', label: 'Year' },

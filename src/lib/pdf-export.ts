@@ -20,7 +20,6 @@ export function exportTracksToPdf(tracks: Track[], playlistName: string, hiddenC
     { key: 'album', title: "Album" },
     { key: 'genre', title: "Genre" },
     { key: 'bpm', title: "BPM" },
-    { key: 'key', title: "Key" },
     { key: 'label', title: "Label" },
     { key: 'year', title: "Year" },
     { key: 'duration', title: "Duration" }
@@ -54,9 +53,6 @@ export function exportTracksToPdf(tracks: Track[], playlistName: string, hiddenC
           break;
         case 'bpm':
           rowData.push(formatBpm(track.bpm));
-          break;
-        case 'key':
-          rowData.push(track.key || "");
           break;
         case 'label':
           rowData.push(track.label || "");
