@@ -1,70 +1,71 @@
-# RekordboxViewer
+# 🎧 RekordboxViewer
 
-RekordboxViewer is a **web-based tool** for inspecting Rekordbox USB drives directly in the browser.
+**Your Rekordbox Library. In Your Browser. Anywhere.**
 
-It lets DJs and music collectors **open a Rekordbox-exported USB**, read the Rekordbox database (`export.pdb` / `exportExt.pdb`), browse tracks and search without Rekordbox installed.
+RekordboxViewer is a fast, web-based tool for inspecting Rekordbox USB drives directly in your browser. No need to install Rekordbox on a friend's laptop just to check your playlist.
 
-No uploads. No cloud sync. Everything runs locally in your browser.
-
----
-
-## What This App Does
-
-- 📂 Opens a Rekordbox USB or exported drive folder using the File System Access API
-- 🔍 Automatically detects Rekordbox databases at:
-- 🎵 Parses real track metadata from the Rekordbox device database
-- 🔎 Search and filter by title, artist, album, or genre
+**Now with PDF Export!** 📄✨
 
 ---
 
-## What This App Does *Not* Do (Yet)
+## 🚀 What This App Does
 
-- ❌ Modify USBs or Rekordbox databases
-- ❌ Write tags back to files
-- ❌ Sync with Rekordbox Cloud
-- ❌ Parse playlists, cue points, beatgrids, or waveforms (planned)
-
-This tool is **read-only by design**.
-
----
-
-## Why This Exists
-
-Rekordbox USBs contain a rich database, but it’s locked inside a proprietary binary format.
-
-This project exists to:
-
-- Inspect what’s actually on a Rekordbox USB
-- Audit libraries before gigs
-- Export track lists for backups, spreadsheets, or tooling
-- Enable future Rekordbox-adjacent tools without reverse-engineering from scratch
+- **📂 Instant Access**: Open any Rekordbox-exported USB or folder.
+- **🔍 Deep Search**: Filter tracks by Title, Artist, Album, Genre, Key, or BPM.
+- **📄 PDF Export**: **NEW!** Generate professional, printable setlists from your playlists. Perfect for submission to promoters, radio stations, or keeping a hard copy in the booth.
+- **⚡️ Lightning Fast**: Parses the binary `export.pdb` database locally. Zero upload time.
+- **📱 Mobile Ready**: Works on your iPhone or iPad (see below!).
 
 ---
 
-## Tech Stack
+## 📱 **iOS & Mobile Support: YES!**
 
-- **React + Vite** — fast modern frontend
-- **Tailwind CSS** — UI styling
-- **File System Access API** — local folder access (no uploads)
-- **rekordbox-parser** — binary parsing of Rekordbox device databases
-- **Pure browser runtime** — no backend required
+We've removed the barriers. You can now use RekordboxViewer on your iPhone or iPad.
 
----
+**How to be a mobile wizard:**
+1.  **Connect your USB** to your iPhone/iPad (using a Lightning/USB-C adapter).
+2.  Open this app in **Safari**.
+3.  Tap the **Select export.pdb** button.
+4.  Navigate to your USB drive in the Files app.
+5.  Go to `PIONEER` ➡️ `rekordbox` ➡️ and tap **`export.pdb`**.
 
-## Browser Support
-
-This app requires the **File System Access API**, which is currently supported in:
-
-- ✅ Chrome
-- ✅ Edge
-- ✅ Chromium-based browsers
-
-⚠️ Safari and iOS browsers are **not supported** (API limitation).
+**BOOM!** 💥 Your entire library is now in your pocket. Search tracks and check keys right from the booth.
 
 ---
 
-## Local Development
+## 🛠 Features
+
+- **Read-Only Safety**: We never modify your USB files. Safe for gig day.
+- **Metadata Parsing**: Reads real track data (BPM, Key, Duration, etc.) directly from the Rekordbox device database.
+- **Playlist Views**: Browse your organized playlists just like on CDJs.
+- **No Cloud Required**: 100% local execution. Your library data never leaves your device.
+
+---
+
+## 💻 Tech Stack
+
+Built with modern web tech for speed and reliability:
+
+- **React + Vite**: Blazing fast frontend.
+- **Tailwind CSS + Shadcn/UI**: Beautiful, responsive interface.
+- **File System Access API**: Native folder browsing support (Desktop).
+- **jspdf**: Client-side PDF generation.
+- **rekordbox-parser**: Custom binary parser for Pioneer databases.
+
+---
+
+## 🏃‍♂️ Run Locally
+
+Want to hack on it?
 
 ```bash
+# Install dependencies
 npm install
+
+# Start the dev server
 npm run dev
+```
+
+---
+
+*Note: This project is not affiliated with AlphaTheta/Pioneer DJ. It is an open-source tool for the community.*
