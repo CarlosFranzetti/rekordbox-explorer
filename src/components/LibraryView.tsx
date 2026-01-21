@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { FileDown } from 'lucide-react';
 import { PlaylistSidebar } from './PlaylistSidebar';
 import { TrackTable } from './TrackTable';
 import { FileBrowser } from './FileBrowser';
 import { SearchBar } from './SearchBar';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/useSettings';
+import { exportTracksToPdf } from '@/lib/pdf-export';
 import type { RekordboxDatabase, Playlist, Track, ViewMode, SortColumn, SortDirection, FileEntry } from '@/types/rekordbox';
 
 interface LibraryViewProps {
@@ -90,8 +93,18 @@ export function LibraryView({
               </div>
 
               {viewMode === 'library' && (
-                <div className="w-72 max-w-[45vw]">
-                  <SearchBar value={searchQuery} onChange={onSearchChange} />
+                <div className="flex items-center gap-2">
+                  <div className="w-72 max-w-[35vw]">
+                    <SearchBar value={searchQuery} onChange={onSearchChange} />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => exportTracksToPdf(filteredTracks, currentPlaylistName)}
+                    title="Export to PDF"
+                  >
+                    <FileDown className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
             </header>
