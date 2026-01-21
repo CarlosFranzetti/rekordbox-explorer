@@ -337,7 +337,7 @@ export async function parseRekordboxDatabaseFromFile(file: File): Promise<Rekord
   for (const table of tables) {
     if (table.type === PAGE_TYPE_TRACKS) {
       parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number) => {
-        parseTrackRow(dataView, rowBase, bufferLength, artists, albums, genres, keys, trackData);
+        parseTrackRow(dataView, rowBase, bufferLength, artists, albums, genres, keys, labels, trackData);
       });
     }
   }
@@ -775,6 +775,7 @@ function parseTrackRow(
   albums: Map<number, string>,
   genres: Map<number, string>,
   keys: Map<number, string>,
+  labels: Map<number, string>,
   trackData: Map<number, Track>
 ) {
   // Track row structure (based on kaitai spec):
@@ -827,6 +828,8 @@ function parseTrackRow(
   const rating = dataView.getUint8(rowBase + 0x59);
   const bitrate = dataView.getUint32(rowBase + 0x30, true);
   const keyId = dataView.getUint32(rowBase + 0x20, true);
+  const labelId = dataView.getUint32(rowBase + 0x28, true);
+  const year = dataView.getUint16(rowBase + 0x50, true);
   
   // Security: Validate IDs and values are reasonable (getUint32 always returns 0-0xFFFFFFFF)
   if (id === 0) {
@@ -896,6 +899,8 @@ function parseTrackRow(
       duration: duration,
       bpm: tempo / 100,
       key: keys.get(keyId) || '',
+      label: labels.get(labelId) || '',
+      year: year,
       rating: rating,
       bitrate: bitrate,
       filePath: filePath,
