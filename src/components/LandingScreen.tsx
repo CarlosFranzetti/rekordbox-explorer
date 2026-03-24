@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { USBStatus, LibraryPresence } from '@/types/rekordbox';
 import { isFileSystemAccessSupported } from '@/hooks/useRekordbox';
+import { DonateSection } from '@/components/DonateSection';
 
 interface LandingScreenProps {
   status: USBStatus;
@@ -213,6 +214,8 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
           <p className="text-center text-xs text-muted-foreground">
             Looks for <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">PIONEER/rekordbox/export.pdb</code>
           </p>
+
+          <DonateSection />
         </CardContent>
       </Card>
     </div>
