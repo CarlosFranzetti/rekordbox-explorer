@@ -57,3 +57,16 @@ We've optimized the experience for mobile devices, but iOS has specific security
 npm install
 npm run dev
 ```
+
+---
+
+## ❤️ Support the Project
+
+If you enjoy using Rekordbox Explorer, consider supporting the project — it helps keep it free and actively maintained!
+
+| Platform | Link |
+|----------|------|
+| PayPal | [paypal.me/losfiesta](https://paypal.me/losfiesta) |
+| Cash App | [$hypedrum](https://cash.app/$hypedrum) |
+
+> Scan QR codes directly in the app by clicking the PayPal or Cash App buttons on the landing screen.
