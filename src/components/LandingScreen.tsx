@@ -79,10 +79,11 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
             <HardDrive className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold text-foreground">
-            RekordboxViewer
+            Rekordbox Explorer
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Browse your Rekordbox USB library without loading the full app
+            Open your rekordbox USB in the browser. Browse it, edit playlists, export setlists.
+            Nothing is uploaded.
           </CardDescription>
         </CardHeader>
         
@@ -206,14 +207,19 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
             </div>
           )}
           
-          {/* Also show compatibility info if status is valid (though this component usually unmounts when valid, 
-              but in case we want to show it before transitioning or in a dialog, it's good to have. 
-              However, the app likely switches to the main view immediately. 
-              We might want to add a way to view this info in the main app later.) */}
-
-          <p className="text-center text-xs text-muted-foreground">
-            Looks for <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">PIONEER/rekordbox/export.pdb</code>
-          </p>
+          <div className="space-y-1 text-center text-xs text-muted-foreground">
+            <p>
+              Reads{' '}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+                PIONEER/rekordbox/export.pdb
+              </code>
+            </p>
+            <p>
+              {supportsFileSystemAccess
+                ? 'Playlist editing writes verified backups to two places on the drive first.'
+                : 'This browser can read but not write. Use Chrome, Edge or Opera on a desktop to edit playlists.'}
+            </p>
+          </div>
 
           <DonateSection />
         </CardContent>
