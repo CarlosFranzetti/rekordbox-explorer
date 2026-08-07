@@ -1,15 +1,27 @@
-import type { Track, Playlist, RekordboxDatabase, FileEntry } from '@/types/rekordbox';
+/**
+ * Reads a rekordbox `export.pdb` into the app's Track/Playlist model.
+ *
+ * Page and row plumbing lives in `src/lib/pdb/structure.ts`; string decoding in
+ * `src/lib/pdb/devicesql.ts`. This file is only the row layouts and the
+ * assembly of the final library.
+ *
+ * Row layouts follow Deep-Symmetry/crate-digger `rekordbox_pdb.ksy`.
+ */
 
-// Page types from the PDB format
-const PAGE_TYPE_TRACKS = 0;
-const PAGE_TYPE_GENRES = 1;
-const PAGE_TYPE_ARTISTS = 2;
-const PAGE_TYPE_ALBUMS = 3;
-const PAGE_TYPE_LABELS = 4;
-const PAGE_TYPE_KEYS = 5;
-const PAGE_TYPE_COLORS = 6;
-const PAGE_TYPE_PLAYLIST_TREE = 7;
-const PAGE_TYPE_PLAYLIST_ENTRIES = 8;
+import type { FileEntry, Playlist, RekordboxDatabase, Track } from '@/types/rekordbox';
+import { decodeDeviceSqlString } from '@/lib/pdb/devicesql';
+import {
+  PAGE_TYPE,
+  PdbFormatError,
+  readFileHeader,
+  readPresentRowOffsets,
+  walkTablePages,
+} from '@/lib/pdb/structure';
+
+/** Refuse anything implausibly large before allocating a buffer for it. */
+const MAX_FILE_SIZE = 500 * 1024 * 1024;
+
+/* ------------------------------------------------------------------ discovery */
 
 export async function findRekordboxDatabase(directoryHandle: FileSystemDirectoryHandle): Promise<{
   found: boolean;
@@ -19,112 +31,86 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
   message?: string;
   libraries?: { hasLegacy: boolean; hasPlus: boolean };
 }> {
-  let hasLegacy = false;
-  let hasPlus = false;
-  let legacyHandle: FileSystemFileHandle | undefined;
-  let legacyPath: string | undefined;
-
-  // Check for PIONEER folder
   let pioneerDir: FileSystemDirectoryHandle | undefined;
   try {
     pioneerDir = await directoryHandle.getDirectoryHandle('PIONEER', { create: false });
-  } catch (error) {
-    // PIONEER folder not found
-    console.error('PIONEER folder not found:', error);
+  } catch {
+    pioneerDir = undefined;
   }
 
-  if (pioneerDir) {
-    // Check for Legacy (PIONEER/rekordbox)
-    try {
-      const rekordboxDir = await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
-      
-      // Check for export.pdb
+  if (!pioneerDir) {
+    // Give a useful answer when this is some other DJ software's drive.
+    for (const folder of ['Serato', '_Serato_', 'Traktor', 'NativeInstruments', 'Engine Library']) {
       try {
-        legacyHandle = await rekordboxDir.getFileHandle('export.pdb', { create: false });
-        hasLegacy = true;
-        legacyPath = 'PIONEER/rekordbox/export.pdb';
+        await directoryHandle.getDirectoryHandle(folder, { create: false });
+        return {
+          found: false,
+          partialMatch: false,
+          message: `This looks like a ${folder.replace(/_/g, '')} drive, not a rekordbox one.`,
+        };
       } catch {
-        // Check for exportExt.pdb
-        const exportExtNames = ['exportExt.pdb', 'exportext.pdb'];
-        for (const name of exportExtNames) {
-          try {
-            legacyHandle = await rekordboxDir.getFileHandle(name, { create: false });
-            hasLegacy = true;
-            legacyPath = `PIONEER/rekordbox/${name}`;
-            break;
-          } catch {
-            // continue
-          }
-        }
+        // keep looking
       }
-    } catch (error) {
-      // rekordbox folder not found
     }
+    return {
+      found: false,
+      partialMatch: false,
+      message: 'No PIONEER/rekordbox folder here — this drive was not exported by rekordbox.',
+    };
+  }
 
-    // Check for Device Library Plus (PIONEER/DeviceLibraryPlus)
+  let legacyHandle: FileSystemFileHandle | undefined;
+  let legacyPath: string | undefined;
+  let hasLegacy = false;
+
+  try {
+    const rekordboxDir = await pioneerDir.getDirectoryHandle('rekordbox', { create: false });
+    for (const name of ['export.pdb', 'exportExt.pdb', 'exportext.pdb']) {
+      try {
+        legacyHandle = await rekordboxDir.getFileHandle(name, { create: false });
+        legacyPath = `PIONEER/rekordbox/${name}`;
+        hasLegacy = true;
+        break;
+      } catch {
+        // try the next name
+      }
+    }
+  } catch {
+    // No rekordbox subfolder.
+  }
+
+  let hasPlus = false;
+  for (const name of ['DeviceLibraryPlus', 'devicelibraryplus']) {
     try {
-      // Note: Some sources suggest it's 'DeviceLibraryPlus' directly under PIONEER
-      // Others suggest checking for specific files inside.
-      // We will check for the folder existence as a primary indicator.
-      await pioneerDir.getDirectoryHandle('DeviceLibraryPlus', { create: false });
+      await pioneerDir.getDirectoryHandle(name, { create: false });
       hasPlus = true;
+      break;
     } catch {
-      // DeviceLibraryPlus folder not found
+      // not present
     }
   }
 
   const libraries = { hasLegacy, hasPlus };
 
   if (hasLegacy && legacyHandle) {
-    return {
-      found: true,
-      handle: legacyHandle,
-      path: legacyPath,
-      libraries
-    };
+    return { found: true, handle: legacyHandle, path: legacyPath, libraries };
   }
 
   if (hasPlus) {
-    // We found Plus but not Legacy. We can't parse Plus yet, so return partial/found=false but with info.
     return {
       found: false,
       partialMatch: true,
-      message: 'Device Library Plus found, but Legacy library (export.pdb) is missing. This USB works with newer hardware (CDJ-3000, Opus-Quad) but may not work with older CDJs.',
-      libraries
+      message:
+        'This drive only has Device Library Plus, which this app cannot read yet. It works on OPUS-QUAD, OMNIS-DUO, XDJ-AZ and CDJ-3000X, but older CDJs need the legacy export.pdb.',
+      libraries,
     };
-  }
-
-  if (pioneerDir) {
-    return {
-      found: false,
-      partialMatch: true,
-      message: 'PIONEER folder found but no valid Rekordbox libraries detected.',
-      libraries
-    };
-  }
-
-  // Check for other DJ software folders (to give helpful message)
-  const djFolders = ['PIONEER', 'Serato', 'Traktor', '_Serato_', 'NativeInstruments'];
-  for (const folder of djFolders) {
-    try {
-      await directoryHandle.getDirectoryHandle(folder, { create: false });
-      if (folder !== 'PIONEER') {
-        return {
-          found: false,
-          partialMatch: false,
-          message: `This appears to be a ${folder} USB, not a Rekordbox USB.`,
-        };
-      }
-    } catch (error) {
-      // Folder doesn't exist, continue
-      console.error(`DJ software folder ${folder} not found:`, error);
-    }
   }
 
   return {
     found: false,
-    partialMatch: false,
-    message: 'Non-Rekordbox USB detected. No PIONEER/rekordbox folder structure found.',
+    partialMatch: true,
+    message: 'Found a PIONEER folder but no rekordbox library inside it.',
+    libraries,
   };
 }
 
@@ -133,838 +119,316 @@ export async function fullScanForDatabase(directoryHandle: FileSystemDirectoryHa
   handle?: FileSystemFileHandle;
   path?: string;
 }> {
-  async function searchDirectory(dir: FileSystemDirectoryHandle, currentPath: string): Promise<{
-    found: boolean;
-    handle?: FileSystemFileHandle;
-    path?: string;
-  }> {
-    const entries = dir.entries();
-    for await (const [name, handle] of entries) {
+  const MAX_DEPTH = 8;
+
+  async function search(
+    dir: FileSystemDirectoryHandle,
+    path: string,
+    depth: number
+  ): Promise<{ found: boolean; handle?: FileSystemFileHandle; path?: string }> {
+    if (depth > MAX_DEPTH) return { found: false };
+
+    const subdirectories: [string, FileSystemDirectoryHandle][] = [];
+    for await (const [name, handle] of dir.entries()) {
       const lower = name.toLowerCase();
       if (handle.kind === 'file' && (lower === 'export.pdb' || lower === 'exportext.pdb')) {
-        return {
-          found: true,
-          handle: handle as FileSystemFileHandle,
-          path: currentPath + '/' + name
-        };
-      } else if (handle.kind === 'directory') {
-        const result = await searchDirectory(handle as FileSystemDirectoryHandle, currentPath + '/' + name);
-        if (result.found) return result;
+        return { found: true, handle: handle as FileSystemFileHandle, path: `${path}/${name}` };
       }
+      if (handle.kind === 'directory') {
+        subdirectories.push([name, handle as FileSystemDirectoryHandle]);
+      }
+    }
+
+    // Breadth first: the database is almost always shallow.
+    for (const [name, handle] of subdirectories) {
+      const result = await search(handle, `${path}/${name}`, depth + 1);
+      if (result.found) return result;
     }
     return { found: false };
   }
 
-  return searchDirectory(directoryHandle, '');
+  return search(directoryHandle, '', 0);
 }
 
-// DeviceSQL String parsing
-function readDeviceSqlString(dataView: DataView, offset: number, bufferLength: number): string {
-  // Security: Validate offset bounds
-  if (offset >= bufferLength || offset < 0) {
-    console.error(`readDeviceSqlString: offset ${offset} out of bounds (buffer length: ${bufferLength})`);
-    return '';
-  }
-  
-  try {
-    // Security: Check minimum space for header byte
-    if (offset + 1 > bufferLength) {
-      console.error(`readDeviceSqlString: insufficient space for header at offset ${offset}`);
-      return '';
-    }
-    
-    const lengthAndKind = dataView.getUint8(offset);
-    
-    if (lengthAndKind === 0x40) {
-      // Long ASCII: 2-byte length follows, then 1 byte padding, then string
-      if (offset + 4 >= bufferLength) {
-        console.error(`readDeviceSqlString: insufficient space for long ASCII at offset ${offset}`);
-        return '';
-      }
-      const length = dataView.getUint16(offset + 1, true);
-      
-      // Security: Validate length is reasonable and within bounds
-      if (length < 4 || length > 65535) {
-        console.error(`readDeviceSqlString: invalid long ASCII length ${length} at offset ${offset}`);
-        return '';
-      }
-      if (offset + 4 + (length - 4) > bufferLength) {
-        console.error(`readDeviceSqlString: long ASCII string extends beyond buffer at offset ${offset}`);
-        return '';
-      }
-      
-      const textBytes = new Uint8Array(dataView.buffer, offset + 4, length - 4);
-      return new TextDecoder('ascii').decode(textBytes);
-    } else if (lengthAndKind === 0x90) {
-      // UTF-16LE: 2-byte length follows, then 1 byte padding, then string
-      if (offset + 4 >= bufferLength) {
-        console.error(`readDeviceSqlString: insufficient space for UTF-16LE at offset ${offset}`);
-        return '';
-      }
-      const length = dataView.getUint16(offset + 1, true);
-      
-      // Security: Validate length is reasonable and within bounds
-      if (length < 4 || length > 65535) {
-        console.error(`readDeviceSqlString: invalid UTF-16LE length ${length} at offset ${offset}`);
-        return '';
-      }
-      if (offset + 4 + (length - 4) > bufferLength) {
-        console.error(`readDeviceSqlString: UTF-16LE string extends beyond buffer at offset ${offset}`);
-        return '';
-      }
-      
-      const textBytes = new Uint8Array(dataView.buffer, offset + 4, length - 4);
-      return new TextDecoder('utf-16le').decode(textBytes);
-    } else if (lengthAndKind % 2 === 1) {
-      // Short ASCII: length encoded in the byte
-      const length = lengthAndKind >> 1;
-      
-      // Security: Validate length is reasonable and within bounds
-      if (length < 1 || length > 127) {
-        console.error(`readDeviceSqlString: invalid short ASCII length ${length} at offset ${offset}`);
-        return '';
-      }
-      if (offset + 1 + (length - 1) > bufferLength) {
-        console.error(`readDeviceSqlString: short ASCII string extends beyond buffer at offset ${offset}`);
-        return '';
-      }
-      
-      const textBytes = new Uint8Array(dataView.buffer, offset + 1, length - 1);
-      return new TextDecoder('ascii').decode(textBytes);
-    }
-    return '';
-  } catch (error) {
-    console.error('Error reading DeviceSQL string:', error);
-    return '';
-  }
-}
+/* -------------------------------------------------------------------- parsing */
 
-interface TableInfo {
-  type: number;
-  firstPage: number;
-  lastPage: number;
-}
-
-export async function parseRekordboxDatabase(fileHandle: FileSystemFileHandle): Promise<RekordboxDatabase> {
-  const file = await fileHandle.getFile();
-  return parseRekordboxDatabaseFromFile(file);
+export async function parseRekordboxDatabase(
+  fileHandle: FileSystemFileHandle
+): Promise<RekordboxDatabase> {
+  return parseRekordboxDatabaseFromFile(await fileHandle.getFile());
 }
 
 export async function parseRekordboxDatabaseFromFile(file: File): Promise<RekordboxDatabase> {
-  const fileSize = file.size;
-  
-  // Security: File size validation (500MB default max)
-  const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-  if (fileSize > MAX_FILE_SIZE) {
-    throw new Error(`File too large: ${(fileSize / (1024 * 1024)).toFixed(2)}MB exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
+  if (file.size > MAX_FILE_SIZE) {
+    throw new PdbFormatError(
+      `That file is ${(file.size / 1024 / 1024).toFixed(0)} MB — far larger than any rekordbox database.`
+    );
   }
-  
-  // Security: Warn about large files (over 100MB)
-  if (fileSize > 100 * 1024 * 1024) {
-    console.warn(`Large file detected: ${(fileSize / (1024 * 1024)).toFixed(2)}MB - this may impact performance`);
-  }
-  
-  const buffer = await file.arrayBuffer();
-  const dataView = new DataView(buffer);
-  const bufferLength = buffer.byteLength;
-  
-  // Security: Validate minimum file size for header
-  if (bufferLength < 28) {
-    throw new Error('File too small to be a valid Rekordbox database');
-  }
-  
-  // Parse file header
-  const lenPage = dataView.getUint32(4, true);
-  const numTables = dataView.getUint32(8, true);
-  
-  // Security: Validate numTables count (getUint32 is always >= 0)
-  if (numTables > 1000) {
-    throw new Error(`Invalid number of tables: ${numTables}`);
-  }
-  
-  // Security: Validate lenPage (getUint32 is always >= 0)
-  if (lenPage < 512 || lenPage > 1024 * 1024) {
-    throw new Error(`Invalid page length: ${lenPage}`);
-  }
-  
-  // Parse table pointers (starting at offset 28)
-  const tables: TableInfo[] = [];
-  let offset = 28;
-  for (let i = 0; i < numTables && offset + 16 <= bufferLength; i++) {
-    const type = dataView.getUint32(offset, true);
-    const firstPage = dataView.getUint32(offset + 8, true);
-    const lastPage = dataView.getUint32(offset + 12, true);
-    
-    // Security: Validate page indices
-    if (firstPage > bufferLength / lenPage || lastPage > bufferLength / lenPage) {
-      console.error(`Invalid page indices for table ${i}: first=${firstPage}, last=${lastPage}`);
-      offset += 16;
-      continue;
-    }
-    
-    tables.push({ type, firstPage, lastPage });
-    offset += 16;
-  }
+  return parseRekordboxDatabaseFromBuffer(await file.arrayBuffer());
+}
 
-  // Lookup tables
-  const artists: Map<number, string> = new Map();
-  const albums: Map<number, string> = new Map();
-  const genres: Map<number, string> = new Map();
-  const keys: Map<number, string> = new Map();
-  const labels: Map<number, string> = new Map();
-  const playlistTree: Map<number, { name: string; parentId: number; isFolder: boolean; sortOrder: number }> = new Map();
-  const playlistEntries: Map<number, { trackId: number; position: number }[]> = new Map();
-  const trackData: Map<number, Track> = new Map();
+export function parseRekordboxDatabaseFromBuffer(buffer: ArrayBuffer): RekordboxDatabase {
+  const view = new DataView(buffer);
+  const header = readFileHeader(view);
 
-  // First pass: parse lookup tables (artists, albums, genres, keys, labels)
-  for (const table of tables) {
-    if (table.type === PAGE_TYPE_ARTISTS || table.type === PAGE_TYPE_ALBUMS || 
-        table.type === PAGE_TYPE_GENRES || table.type === PAGE_TYPE_KEYS || 
-        table.type === PAGE_TYPE_LABELS) {
-      parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number, pageType: number) => {
-        parseSimpleRow(dataView, rowBase, pageType, bufferLength, artists, albums, genres, keys, labels);
-      });
-    }
-  }
+  const artists = new Map<number, string>();
+  const albums = new Map<number, string>();
+  const genres = new Map<number, string>();
+  const keys = new Map<number, string>();
+  const labels = new Map<number, string>();
 
-  // Second pass: parse playlist tree
-  for (const table of tables) {
-    if (table.type === PAGE_TYPE_PLAYLIST_TREE) {
-      parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number) => {
-        parsePlaylistTreeRow(dataView, rowBase, bufferLength, playlistTree);
-      });
-    }
-  }
-
-  // Third pass: parse playlist entries  
-  for (const table of tables) {
-    if (table.type === PAGE_TYPE_PLAYLIST_ENTRIES) {
-      parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number) => {
-        parsePlaylistEntryRow(dataView, rowBase, bufferLength, playlistEntries);
-      });
-    }
-  }
-
-  // Fourth pass: parse tracks
-  for (const table of tables) {
-    if (table.type === PAGE_TYPE_TRACKS) {
-      parseTablePages(dataView, table, lenPage, bufferLength, (rowBase: number) => {
-        parseTrackRow(dataView, rowBase, bufferLength, artists, albums, genres, keys, labels, trackData);
-      });
-    }
-  }
-
-  // Convert track map to array
-  const tracks = Array.from(trackData.values());
-
-  // Build playlist hierarchy
-  const playlistMap = new Map<number, Playlist>();
-  
-  playlistTree.forEach((value, id) => {
-    const entries = playlistEntries.get(id) || [];
-    const sortedEntries = entries.sort((a, b) => a.position - b.position);
-    
-    const playlist: Playlist = {
-      id,
-      name: value.name,
-      parentId: value.parentId === 0 ? null : value.parentId,
-      isFolder: value.isFolder,
-      children: [],
-      trackIds: sortedEntries.map(e => e.trackId)
-    };
-    playlistMap.set(id, playlist);
-  });
-
-  // Link children to parents
-  playlistMap.forEach(playlist => {
-    if (playlist.parentId !== null) {
-      const parent = playlistMap.get(playlist.parentId);
-      if (parent) {
-        parent.children.push(playlist);
+  const readRows = (
+    type: number,
+    onRow: (rowStart: number, pageEnd: number) => void
+  ): void => {
+    for (const table of header.tables) {
+      if (table.type !== type) continue;
+      for (const page of walkTablePages(view, header, table)) {
+        const pageEnd = page.offset + header.lenPage;
+        for (const rowStart of readPresentRowOffsets(view, header.lenPage, page)) {
+          try {
+            onRow(rowStart, pageEnd);
+          } catch {
+            // A single malformed row must not sink the whole library.
+          }
+        }
       }
     }
+  };
+
+  // Lookup tables first — track rows reference them by id.
+  readRows(PAGE_TYPE.ARTISTS, (row, end) => readNamedRow(view, row, end, 0x04, 0x09, artists));
+  readRows(PAGE_TYPE.ALBUMS, (row, end) => readNamedRow(view, row, end, 0x0c, 0x15, albums));
+  readRows(PAGE_TYPE.GENRES, (row, end) => readIdNameRow(view, row, end, 0x04, genres));
+  readRows(PAGE_TYPE.LABELS, (row, end) => readIdNameRow(view, row, end, 0x04, labels));
+  readRows(PAGE_TYPE.KEYS, (row, end) => readIdNameRow(view, row, end, 0x08, keys));
+
+  const playlistTree = new Map<
+    number,
+    { name: string; parentId: number; isFolder: boolean; sortOrder: number }
+  >();
+  readRows(PAGE_TYPE.PLAYLIST_TREE, (row, end) => {
+    if (row + 0x14 > end) return;
+    const id = view.getUint32(row + 0x0c, true);
+    if (id === 0) return;
+    const name = decodeDeviceSqlString(view, row + 0x14, end);
+    if (!name?.text) return;
+    playlistTree.set(id, {
+      name: name.text,
+      parentId: view.getUint32(row, true),
+      isFolder: view.getUint32(row + 0x10, true) !== 0,
+      sortOrder: view.getUint32(row + 0x08, true),
+    });
   });
 
-  // Get root playlists (no parent) and sort by original order
-  const rootPlaylists = Array.from(playlistMap.values())
-    .filter(p => p.parentId === null)
-    .sort((a, b) => {
-      const aOrder = playlistTree.get(a.id)?.sortOrder ?? 0;
-      const bOrder = playlistTree.get(b.id)?.sortOrder ?? 0;
-      return aOrder - bOrder;
-    });
+  const playlistEntries = new Map<number, { trackId: number; position: number }[]>();
+  readRows(PAGE_TYPE.PLAYLIST_ENTRIES, (row, end) => {
+    if (row + 0x0c > end) return;
+    const trackId = view.getUint32(row + 0x04, true);
+    const playlistId = view.getUint32(row + 0x08, true);
+    if (trackId === 0 || playlistId === 0) return;
+    const entries = playlistEntries.get(playlistId);
+    const entry = { trackId, position: view.getUint32(row, true) };
+    if (entries) entries.push(entry);
+    else playlistEntries.set(playlistId, [entry]);
+  });
+
+  const trackData = new Map<number, Track>();
+  readRows(PAGE_TYPE.TRACKS, (row, end) =>
+    readTrackRow(view, row, end, { artists, albums, genres, keys, labels }, trackData)
+  );
 
   return {
-    tracks,
-    playlists: rootPlaylists
+    tracks: [...trackData.values()],
+    playlists: buildPlaylistTree(playlistTree, playlistEntries),
   };
 }
 
-function parseTablePages(
-  dataView: DataView, 
-  table: TableInfo, 
-  lenPage: number, 
-  bufferLength: number,
-  rowCallback: (rowBase: number, pageType: number) => void
-) {
-  let pageIndex = table.firstPage;
-  const visitedPages = new Set<number>();
-  
-  // Security: Validate initial page index (getUint32 is always >= 0)
-  if (pageIndex * lenPage >= bufferLength) {
-    console.error(`parseTablePages: invalid initial page index ${pageIndex}`);
-    return;
+/* ---------------------------------------------------------------- row readers */
+
+/**
+ * Artist and album rows: an id, then a name whose offset is either a byte near
+ * the row start or — when `subtype & 0x04` is set — a 16-bit offset that can
+ * reach further into the page heap.
+ */
+function readNamedRow(
+  view: DataView,
+  row: number,
+  pageEnd: number,
+  idOffset: number,
+  nearOffset: number,
+  into: Map<number, string>
+): void {
+  if (row + nearOffset + 1 > pageEnd) return;
+
+  const subtype = view.getUint16(row, true);
+  const id = view.getUint32(row + idOffset, true);
+  if (id === 0) return;
+
+  let nameOffset: number;
+  if ((subtype & 0x04) === 0x04) {
+    const farOffset = nearOffset + 1;
+    if (row + farOffset + 2 > pageEnd) return;
+    nameOffset = view.getUint16(row + farOffset, true);
+  } else {
+    nameOffset = view.getUint8(row + nearOffset);
   }
-  
-  while (pageIndex > 0 && !visitedPages.has(pageIndex)) {
-    visitedPages.add(pageIndex);
-    const pageOffset = pageIndex * lenPage;
-    
-    // Security: Validate page offset and ensure full page is within bounds
-    if (pageOffset + lenPage > bufferLength) {
-      console.error(`parseTablePages: page ${pageIndex} offset ${pageOffset} out of bounds`);
-      break;
-    }
-    
-    // Security: Check minimum page size for header (40 bytes)
-    if (pageOffset + 40 > bufferLength) {
-      console.error(`parseTablePages: insufficient space for page header at offset ${pageOffset}`);
-      break;
-    }
-    
-    // Parse page header
-    // Bytes 0-3: gap (zeros)
-    // Bytes 4-7: page_index
-    // Bytes 8-11: type
-    // Bytes 12-15: next_page index
-    // Bytes 16-19: sequence
-    // Bytes 20-23: unknown
-    // Bytes 24-26: packed bits (num_row_offsets: 13 bits, num_rows: 11 bits)
-    // Byte 27: page_flags
-    
-    const pageType = dataView.getUint32(pageOffset + 8, true);
-    const nextPageIndex = dataView.getUint32(pageOffset + 12, true);
-    
-    // Read the packed bits for row counts
-    const packedRowInfo = dataView.getUint32(pageOffset + 24, true);
-    const numRowOffsets = packedRowInfo & 0x1FFF; // Lower 13 bits (always >= 0)
-    const pageFlags = dataView.getUint8(pageOffset + 27);
-    
-    // Security: Validate numRowOffsets is reasonable
-    if (numRowOffsets > 2000) {
-      console.error(`parseTablePages: invalid numRowOffsets ${numRowOffsets} at page ${pageIndex}`);
-      break;
-    }
-    
-    // Check if this is a data page (bit 0x40 not set means it's a data page)
-    const isDataPage = (pageFlags & 0x40) === 0;
-    
-    if (isDataPage && pageType === table.type && numRowOffsets > 0) {
-      // Row index is built backwards from end of page
-      // Each row group can hold up to 16 rows
-      const numRowGroups = Math.ceil(numRowOffsets / 16);
-      const heapPos = pageOffset + 40; // Data starts after 40-byte header
-      
-      for (let groupIndex = 0; groupIndex < numRowGroups; groupIndex++) {
-        const groupBase = pageOffset + lenPage - (groupIndex * 0x24);
-        
-        // Security: Validate groupBase is within page bounds
-        if (groupBase < pageOffset || groupBase > pageOffset + lenPage) {
-          console.error(`parseTablePages: invalid groupBase ${groupBase} for group ${groupIndex}`);
-          continue;
-        }
-        
-        // Row present flags at groupBase - 4
-        if (groupBase - 4 < pageOffset + 40) continue;
-        const rowPresentFlags = dataView.getUint16(groupBase - 4, true);
-        
-        // Parse up to 16 rows in this group
-        for (let rowIndex = 0; rowIndex < 16; rowIndex++) {
-          // Check if this row is present
-          const isPresent = ((rowPresentFlags >> rowIndex) & 1) !== 0;
-          if (!isPresent) continue;
-          
-          // Row offset is at groupBase - 6 - (rowIndex * 2)
-          const ofsRowPos = groupBase - 6 - (rowIndex * 2);
-          
-          // Security: Validate ofsRowPos is within bounds
-          if (ofsRowPos < pageOffset + 40 || ofsRowPos + 2 > pageOffset + lenPage) {
-            console.error(`parseTablePages: invalid ofsRowPos ${ofsRowPos} for row ${rowIndex}`);
-            continue;
-          }
-          
-          const ofsRow = dataView.getUint16(ofsRowPos, true);
-          const rowBase = heapPos + ofsRow;
-          
-          // Security: Validate rowBase is within page bounds
-          if (rowBase < pageOffset + 40 || rowBase >= pageOffset + lenPage) {
-            console.error(`parseTablePages: invalid rowBase ${rowBase} for row ${rowIndex}`);
-            continue;
-          }
-          
-          try {
-            rowCallback(rowBase, pageType);
-          } catch (error) {
-            // Skip malformed rows
-            console.error('Error parsing row at offset', rowBase, ':', error);
-          }
-        }
-      }
-    }
-    
-    // Move to next page
-    // Security: Validate nextPageIndex (getUint32 is always >= 0)
-    if (nextPageIndex === 0 || nextPageIndex >= bufferLength / lenPage) {
-      break;
-    }
-    if (pageIndex === table.lastPage) break;
-    
-    // Security: Prevent infinite loops
-    if (visitedPages.size > 10000) {
-      console.error('parseTablePages: too many pages visited, possible infinite loop');
-      break;
-    }
-    
-    pageIndex = nextPageIndex;
-  }
+
+  if (nameOffset === 0) return;
+  const name = decodeDeviceSqlString(view, row + nameOffset, pageEnd);
+  if (name?.text) into.set(id, name.text);
 }
 
-function parseSimpleRow(
-  dataView: DataView,
-  rowBase: number,
-  pageType: number,
-  bufferLength: number,
-  artists: Map<number, string>,
-  albums: Map<number, string>,
-  genres: Map<number, string>,
-  keys: Map<number, string>,
-  labels: Map<number, string>
-) {
-  // Security: Validate minimum row size
-  if (rowBase + 10 > bufferLength) {
-    console.error(`parseSimpleRow: insufficient space at offset ${rowBase}`);
-    return;
-  }
-  
-  switch (pageType) {
-    case PAGE_TYPE_ARTISTS: {
-      // Artist row: subtype (u16), index_shift (u16), id (u32), 0x03 (u8), ofs_name_near (u8)
-      // Security: Validate space for artist row (minimum 10 bytes)
-      if (rowBase + 10 > bufferLength) {
-        console.error(`parseSimpleRow: insufficient space for artist row at offset ${rowBase}`);
-        return;
-      }
-      
-      const subtype = dataView.getUint16(rowBase, true);
-      const id = dataView.getUint32(rowBase + 4, true);
-      
-      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
-      if (id === 0) {
-        console.error(`parseSimpleRow: invalid artist ID ${id}`);
-        return;
-      }
-      
-      let nameOffset: number;
-      if ((subtype & 0x04) === 0x04) {
-        // Long offset at row + 0x0a
-        if (rowBase + 0x0c > bufferLength) {
-          console.error(`parseSimpleRow: insufficient space for long offset at ${rowBase + 0x0a}`);
-          return;
-        }
-        nameOffset = dataView.getUint16(rowBase + 0x0a, true);
-      } else {
-        nameOffset = dataView.getUint8(rowBase + 9);
-      }
-      
-      // Security: Validate nameOffset is within reasonable range (getUint16/getUint8 are always >= 0)
-      if (nameOffset > 10000) {
-        console.error(`parseSimpleRow: invalid name offset ${nameOffset} for artist`);
-        return;
-      }
-      
-      const name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
-      if (name) artists.set(id, name);
-      break;
-    }
-    case PAGE_TYPE_ALBUMS: {
-      // Album row structure - try multiple known layouts
-      // Security: Validate space for album row
-      if (rowBase + 22 > bufferLength) {
-        return;
-      }
-      
-      const subtype = dataView.getUint16(rowBase, true);
-      
-      // Try reading ID from offset 0x0C (standard location)
-      let id = dataView.getUint32(rowBase + 0x0C, true);
-      
-      // If ID is 0, try alternate offset 0x04 (some versions use this)
-      if (id === 0) {
-        id = dataView.getUint32(rowBase + 0x04, true);
-      }
-      
-      if (id === 0) {
-        return; // Skip entries with no valid ID
-      }
-      
-      // Try multiple name offset strategies
-      let name = '';
-      
-      // Strategy 1: Check for long offset flag (bit 0x100)
-      if ((subtype & 0x100) !== 0 && rowBase + 0x18 <= bufferLength) {
-        const nameOffset = dataView.getUint16(rowBase + 0x16, true);
-        if (nameOffset > 0 && nameOffset < 1000) {
-          name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
-        }
-      }
-      
-      // Strategy 2: Near offset at 0x15 (common)
-      if (!name && rowBase + 0x16 <= bufferLength) {
-        const nameOffset = dataView.getUint8(rowBase + 0x15);
-        if (nameOffset > 0 && nameOffset < 200) {
-          name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
-        }
-      }
-      
-      // Strategy 3: Near offset at byte 17 (legacy)
-      if (!name && rowBase + 18 <= bufferLength) {
-        const nameOffset = dataView.getUint8(rowBase + 17);
-        if (nameOffset > 0 && nameOffset < 200) {
-          name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
-        }
-      }
-      
-      // Strategy 4: Check subtype 0x04 flag for long offset
-      if (!name && (subtype & 0x04) !== 0 && rowBase + 0x18 <= bufferLength) {
-        const nameOffset = dataView.getUint16(rowBase + 0x16, true);
-        if (nameOffset > 0 && nameOffset < 1000) {
-          name = readDeviceSqlString(dataView, rowBase + nameOffset, bufferLength);
-        }
-      }
-      
-      if (name) {
-        albums.set(id, name);
-        console.log(`Album parsed: id=${id}, name="${name}"`);
-      }
-      break;
-    }
-    case PAGE_TYPE_GENRES: {
-      // Genre row: id (u32), name (device_sql_string)
-      if (rowBase + 4 > bufferLength) {
-        console.error(`parseSimpleRow: insufficient space for genre row at offset ${rowBase}`);
-        return;
-      }
-      
-      const id = dataView.getUint32(rowBase, true);
-      
-      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
-      if (id === 0) {
-        console.error(`parseSimpleRow: invalid genre ID ${id}`);
-        return;
-      }
-      
-      const name = readDeviceSqlString(dataView, rowBase + 4, bufferLength);
-      if (name) genres.set(id, name);
-      break;
-    }
-    case PAGE_TYPE_KEYS: {
-      // Key row: id (u32), id2 (u32), name (device_sql_string)
-      if (rowBase + 8 > bufferLength) {
-        console.error(`parseSimpleRow: insufficient space for key row at offset ${rowBase}`);
-        return;
-      }
-      
-      const id = dataView.getUint32(rowBase, true);
-      
-      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
-      if (id === 0) {
-        console.error(`parseSimpleRow: invalid key ID ${id}`);
-        return;
-      }
-      
-      const name = readDeviceSqlString(dataView, rowBase + 8, bufferLength);
-      if (name) keys.set(id, name);
-      break;
-    }
-    case PAGE_TYPE_LABELS: {
-      // Label row: id (u32), name (device_sql_string)
-      if (rowBase + 4 > bufferLength) {
-        console.error(`parseSimpleRow: insufficient space for label row at offset ${rowBase}`);
-        return;
-      }
-      
-      const id = dataView.getUint32(rowBase, true);
-      
-      // Security: Validate ID is reasonable (getUint32 always returns 0-0xFFFFFFFF)
-      if (id === 0) {
-        console.error(`parseSimpleRow: invalid label ID ${id}`);
-        return;
-      }
-      
-      const name = readDeviceSqlString(dataView, rowBase + 4, bufferLength);
-      if (name) labels.set(id, name);
-      break;
-    }
-  }
+/** Genre, label and key rows: a fixed-size id block, then the name inline. */
+function readIdNameRow(
+  view: DataView,
+  row: number,
+  pageEnd: number,
+  nameOffset: number,
+  into: Map<number, string>
+): void {
+  if (row + nameOffset > pageEnd) return;
+  const id = view.getUint32(row, true);
+  if (id === 0) return;
+  const name = decodeDeviceSqlString(view, row + nameOffset, pageEnd);
+  if (name?.text) into.set(id, name.text);
 }
 
-function parsePlaylistTreeRow(
-  dataView: DataView,
-  rowBase: number,
-  bufferLength: number,
-  playlistTree: Map<number, { name: string; parentId: number; isFolder: boolean; sortOrder: number }>
-) {
-  // Security: Validate minimum row size
-  if (rowBase + 20 > bufferLength) {
-    console.error(`parsePlaylistTreeRow: insufficient space at offset ${rowBase}`);
-    return;
-  }
-  
-  // Playlist tree row: parent_id (u32), unknown (u32), sort_order (u32), id (u32), raw_is_folder (u32), name
-  const parentId = dataView.getUint32(rowBase, true);
-  const sortOrder = dataView.getUint32(rowBase + 8, true);
-  const id = dataView.getUint32(rowBase + 12, true);
-  const rawIsFolder = dataView.getUint32(rowBase + 16, true);
-  
-  // Security: Validate IDs are reasonable (getUint32 always returns 0-0xFFFFFFFF)
-  if (id === 0) {
-    console.error(`parsePlaylistTreeRow: invalid playlist ID ${id}`);
-    return;
-  }
-  
-  const name = readDeviceSqlString(dataView, rowBase + 20, bufferLength);
-  
-  if (name && id > 0) {
-    playlistTree.set(id, {
-      name,
-      parentId,
-      isFolder: rawIsFolder !== 0,
-      sortOrder
-    });
-  }
+/**
+ * Track row. Fixed fields up to 0x5E, then 21 u16 string offsets relative to
+ * the row start. Index 17 is the title, 20 the file path, 10 the date added.
+ */
+const TRACK_ROW_MIN_SIZE = 0x88;
+const STRING_OFFSET_BASE = 0x5e;
+const STRING_INDEX = { dateAdded: 10, title: 17, filePath: 20 } as const;
+
+function readTrackRow(
+  view: DataView,
+  row: number,
+  pageEnd: number,
+  lookups: {
+    artists: Map<number, string>;
+    albums: Map<number, string>;
+    genres: Map<number, string>;
+    keys: Map<number, string>;
+    labels: Map<number, string>;
+  },
+  into: Map<number, Track>
+): void {
+  if (row + TRACK_ROW_MIN_SIZE > pageEnd) return;
+
+  const id = view.getUint32(row + 0x48, true);
+  if (id === 0) return;
+
+  const readString = (index: number): string => {
+    const offset = view.getUint16(row + STRING_OFFSET_BASE + index * 2, true);
+    if (offset === 0) return '';
+    return decodeDeviceSqlString(view, row + offset, pageEnd)?.text ?? '';
+  };
+
+  const tempo = view.getUint32(row + 0x38, true);
+  const duration = view.getUint16(row + 0x54, true);
+  const bitrate = view.getUint32(row + 0x30, true);
+  const year = view.getUint16(row + 0x50, true);
+
+  const dateAdded = readString(STRING_INDEX.dateAdded);
+  const parsedDate = dateAdded ? new Date(dateAdded) : null;
+
+  into.set(id, {
+    id,
+    title: readString(STRING_INDEX.title) || 'Unknown Title',
+    artist: lookups.artists.get(view.getUint32(row + 0x44, true)) || 'Unknown Artist',
+    album: lookups.albums.get(view.getUint32(row + 0x40, true)) || '',
+    genre: lookups.genres.get(view.getUint32(row + 0x3c, true)) || '',
+    key: lookups.keys.get(view.getUint32(row + 0x20, true)) || '',
+    label: lookups.labels.get(view.getUint32(row + 0x28, true)) || '',
+    // Implausible values mean we misread the row; show nothing rather than nonsense.
+    duration: duration <= 36_000 ? duration : 0,
+    bpm: tempo <= 50_000 ? tempo / 100 : 0,
+    bitrate: bitrate <= 10_000 ? bitrate : 0,
+    year: year >= 1900 && year <= 2200 ? year : undefined,
+    rating: view.getUint8(row + 0x59) & 0x0f,
+    filePath: readString(STRING_INDEX.filePath),
+    dateAdded: parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : new Date(0),
+  });
 }
 
-function parsePlaylistEntryRow(
-  dataView: DataView,
-  rowBase: number,
-  bufferLength: number,
-  playlistEntries: Map<number, { trackId: number; position: number }[]>
-) {
-  // Security: Validate minimum row size
-  if (rowBase + 12 > bufferLength) {
-    console.error(`parsePlaylistEntryRow: insufficient space at offset ${rowBase}`);
-    return;
-  }
-  
-  // Playlist entry row: entry_index (u32), track_id (u32), playlist_id (u32)
-  const entryIndex = dataView.getUint32(rowBase, true);
-  const trackId = dataView.getUint32(rowBase + 4, true);
-  const playlistId = dataView.getUint32(rowBase + 8, true);
-  
-  // Security: Validate IDs are reasonable and positive (getUint32 always returns 0-0xFFFFFFFF)
-  if (playlistId === 0) {
-    console.error(`parsePlaylistEntryRow: invalid playlist ID ${playlistId}`);
-    return;
-  }
-  if (trackId === 0) {
-    console.error(`parsePlaylistEntryRow: invalid track ID ${trackId}`);
-    return;
-  }
-  
-  if (playlistId > 0 && trackId > 0) {
-    if (!playlistEntries.has(playlistId)) {
-      playlistEntries.set(playlistId, []);
-    }
-    playlistEntries.get(playlistId)!.push({ trackId, position: entryIndex });
-  }
-}
+/* ------------------------------------------------------------- tree assembly */
 
-function parseTrackRow(
-  dataView: DataView,
-  rowBase: number,
-  bufferLength: number,
-  artists: Map<number, string>,
-  albums: Map<number, string>,
-  genres: Map<number, string>,
-  keys: Map<number, string>,
-  labels: Map<number, string>,
-  trackData: Map<number, Track>
-) {
-  // Track row structure (based on kaitai spec):
-  // 0x00: subtype (u16) - always 0x24
-  // 0x02: index_shift (u16)
-  // 0x04: bitmask (u32)
-  // 0x08: sample_rate (u32)
-  // 0x0C: composer_id (u32)
-  // 0x10: file_size (u32)
-  // 0x14: unknown (u32)
-  // 0x18: unknown (u16)
-  // 0x1A: unknown (u16)
-  // 0x1C: artwork_id (u32)
-  // 0x20: key_id (u32)
-  // 0x24: original_artist_id (u32)
-  // 0x28: label_id (u32)
-  // 0x2C: remixer_id (u32)
-  // 0x30: bitrate (u32)
-  // 0x34: track_number (u32)
-  // 0x38: tempo (u32) - BPM * 100
-  // 0x3C: genre_id (u32)
-  // 0x40: album_id (u32)
-  // 0x44: artist_id (u32)
-  // 0x48: id (u32)
-  // 0x4C: disc_number (u16)
-  // 0x4E: play_count (u16)
-  // 0x50: year (u16)
-  // 0x52: sample_depth (u16)
-  // 0x54: duration (u16)
-  // 0x56: unknown (u16)
-  // 0x58: color_id (u8)
-  // 0x59: rating (u8)
-  // 0x5A: unknown (u16)
-  // 0x5C: unknown (u16)
-  // 0x5E-0x86: ofs_strings[21] (u16 each, 42 bytes total)
-  // String offsets: [0]=isrc, [1]=texter, ..., [17]=title, [18]=unknown, [19]=filename, [20]=file_path
+function buildPlaylistTree(
+  tree: Map<number, { name: string; parentId: number; isFolder: boolean; sortOrder: number }>,
+  entries: Map<number, { trackId: number; position: number }[]>
+): Playlist[] {
+  const byId = new Map<number, Playlist>();
 
-  // Security: Validate minimum row size (0x86 = 134 bytes)
-  if (rowBase + 0x86 > bufferLength) {
-    console.error(`parseTrackRow: insufficient space at offset ${rowBase}`);
-    return;
-  }
-  
-  const tempo = dataView.getUint32(rowBase + 0x38, true);
-  const genreId = dataView.getUint32(rowBase + 0x3C, true);
-  const albumId = dataView.getUint32(rowBase + 0x40, true);
-  const artistId = dataView.getUint32(rowBase + 0x44, true);
-  const id = dataView.getUint32(rowBase + 0x48, true);
-  const duration = dataView.getUint16(rowBase + 0x54, true);
-  const rating = dataView.getUint8(rowBase + 0x59);
-  const bitrate = dataView.getUint32(rowBase + 0x30, true);
-  const keyId = dataView.getUint32(rowBase + 0x20, true);
-  const labelId = dataView.getUint32(rowBase + 0x28, true);
-  const year = dataView.getUint16(rowBase + 0x50, true);
-  
-  // Security: Validate IDs and values are reasonable (getUint32 always returns 0-0xFFFFFFFF)
-  if (id === 0) {
-    console.error(`parseTrackRow: invalid track ID ${id}`);
-    return;
-  }
-  
-  // Security: Validate tempo is reasonable (0-500 BPM range, stored as BPM * 100)
-  if (tempo > 50000) {
-    console.error(`parseTrackRow: invalid tempo ${tempo} for track ${id}`);
-    return;
-  }
-  
-  // Security: Validate duration is reasonable (0-10 hours in seconds, getUint16 always >= 0)
-  if (duration > 36000) {
-    console.error(`parseTrackRow: invalid duration ${duration} for track ${id}`);
-    return;
-  }
-  
-  // Security: Validate rating (0-5 range typical for Rekordbox, getUint8 always >= 0)
-  if (rating > 255) {
-    console.error(`parseTrackRow: invalid rating ${rating} for track ${id}`);
-    return;
-  }
-  
-  // Security: Validate bitrate is reasonable (0-10000 kbps, getUint32 always >= 0)
-  if (bitrate > 10000) {
-    console.error(`parseTrackRow: invalid bitrate ${bitrate} for track ${id}`);
-    return;
-  }
-  
-  // Read string offsets (21 u16 values starting at 0x5E)
-  const ofsStrings: number[] = [];
-  for (let i = 0; i < 21; i++) {
-    const offset = dataView.getUint16(rowBase + 0x5E + (i * 2), true);
-    
-    // Security: Validate offset is within reasonable range (getUint16 returns 0-65535)
-    if (offset > 10000) {
-      console.error(`parseTrackRow: invalid string offset ${offset} at index ${i} for track ${id}`);
-      ofsStrings.push(0);
-    } else {
-      ofsStrings.push(offset);
-    }
-  }
-  
-  // Title is at index 17
-  const titleOffset = ofsStrings[17];
-  const title = titleOffset > 0 ? readDeviceSqlString(dataView, rowBase + titleOffset, bufferLength) : '';
-  
-  // File path is at index 20
-  const filePathOffset = ofsStrings[20];
-  const filePath = filePathOffset > 0 ? readDeviceSqlString(dataView, rowBase + filePathOffset, bufferLength) : '';
-  
-  // Date added is at index 10
-  const dateAddedOffset = ofsStrings[10];
-  const dateAddedStr = dateAddedOffset > 0 ? readDeviceSqlString(dataView, rowBase + dateAddedOffset, bufferLength) : '';
-  
-  // Only add if we have a valid ID and some meaningful data
-  if (id > 0) {
-    // Use the latest entry for each track ID (handles duplicates)
-    trackData.set(id, {
+  for (const [id, node] of tree) {
+    const rows = (entries.get(id) ?? []).sort((a, b) => a.position - b.position);
+    byId.set(id, {
       id,
-      title: title || 'Unknown Title',
-      artist: artists.get(artistId) || 'Unknown Artist',
-      album: albums.get(albumId) || 'Unknown Album',
-      genre: genres.get(genreId) || '',
-      duration: duration,
-      bpm: tempo / 100,
-      key: keys.get(keyId) || '',
-      label: labels.get(labelId) || '',
-      year: year,
-      rating: rating,
-      bitrate: bitrate,
-      filePath: filePath,
-      dateAdded: dateAddedStr ? new Date(dateAddedStr) : new Date()
+      name: node.name,
+      parentId: node.parentId === 0 ? null : node.parentId,
+      isFolder: node.isFolder,
+      children: [],
+      trackIds: rows.map((row) => row.trackId),
     });
   }
+
+  const bySortOrder = (a: Playlist, b: Playlist) =>
+    (tree.get(a.id)?.sortOrder ?? 0) - (tree.get(b.id)?.sortOrder ?? 0);
+
+  const roots: Playlist[] = [];
+  for (const playlist of byId.values()) {
+    const parent = playlist.parentId === null ? null : byId.get(playlist.parentId);
+    if (parent) parent.children.push(playlist);
+    else roots.push(playlist);
+  }
+
+  for (const playlist of byId.values()) playlist.children.sort(bySortOrder);
+  return roots.sort(bySortOrder);
 }
 
-export async function listDirectory(directoryHandle: FileSystemDirectoryHandle): Promise<FileEntry[]> {
+/* -------------------------------------------------------------- file browsing */
+
+export async function listDirectory(
+  directoryHandle: FileSystemDirectoryHandle
+): Promise<FileEntry[]> {
   const entries: FileEntry[] = [];
-  
-  const dirEntries = directoryHandle.entries();
-  for await (const [name, handle] of dirEntries) {
+
+  for await (const [name, handle] of directoryHandle.entries()) {
     const entry: FileEntry = {
       name,
       path: name,
       isDirectory: handle.kind === 'directory',
-      handle
+      handle,
     };
-    
+
     if (handle.kind === 'file') {
       try {
-        const file = await (handle as FileSystemFileHandle).getFile();
-        entry.size = file.size;
-      } catch (error) {
-        console.error('Error getting file size for', name, ':', error);
+        entry.size = (await (handle as FileSystemFileHandle).getFile()).size;
+      } catch {
         entry.size = 0;
       }
     }
-    
+
     entries.push(entry);
   }
-  
-  // Sort: directories first, then alphabetically
-  entries.sort((a, b) => {
-    if (a.isDirectory && !b.isDirectory) return -1;
-    if (!a.isDirectory && b.isDirectory) return 1;
+
+  return entries.sort((a, b) => {
+    if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
-  
-  return entries;
 }
 
+/* ---------------------------------------------------------------- formatting */
+
 export function formatDuration(seconds: number): string {
-  if (!seconds || isNaN(seconds)) return '--:--';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+  if (!seconds || Number.isNaN(seconds)) return '--:--';
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
 }
 
 export function formatBpm(bpm: number): string {
-  if (!bpm || isNaN(bpm)) return '--';
+  if (!bpm || Number.isNaN(bpm)) return '--';
   return bpm.toFixed(1);
 }
 
