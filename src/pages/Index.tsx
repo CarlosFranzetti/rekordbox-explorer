@@ -3,42 +3,63 @@ import { LandingScreen } from '@/components/LandingScreen';
 import { LibraryView } from '@/components/LibraryView';
 
 const Index = () => {
-  const rekordbox = useRekordbox();
+  const {
+    status,
+    directoryPath,
+    fileEntries,
+    selectedPlaylist,
+    searchQuery,
+    sortColumn,
+    sortDirection,
+    selectFolder,
+    performFullScan,
+    navigateToDirectory,
+    navigateUp,
+    loadFileEntries,
+    reset,
+    setSelectedPlaylist,
+    setSearchQuery,
+    getFilteredTracks,
+    handleSort,
+    fileInputRef,
+    handleFileInput,
+    triggerFileInput
+  } = useRekordbox();
 
-  if (rekordbox.status.type === 'valid') {
+  // Show library view when database is loaded
+  if (status.type === 'valid') {
     return (
       <LibraryView
-        database={rekordbox.status.database}
-        libraries={rekordbox.status.libraries}
-        rootHandle={rekordbox.rootHandle}
-        selectedPlaylist={rekordbox.selectedPlaylist}
-        onSelectPlaylist={rekordbox.setSelectedPlaylist}
-        searchQuery={rekordbox.searchQuery}
-        onSearchChange={rekordbox.setSearchQuery}
-        sortColumn={rekordbox.sortColumn}
-        sortDirection={rekordbox.sortDirection}
-        onSort={rekordbox.handleSort}
-        filteredTracks={rekordbox.getFilteredTracks()}
-        fileEntries={rekordbox.fileEntries}
-        directoryPath={rekordbox.directoryPath}
-        onNavigateToDirectory={rekordbox.navigateToDirectory}
-        onNavigateUp={rekordbox.navigateUp}
-        onLoadFileEntries={rekordbox.loadFileEntries}
-        onReset={rekordbox.reset}
-        onReload={rekordbox.reload}
+        database={status.database}
+        libraries={status.libraries}
+        selectedPlaylist={selectedPlaylist}
+        onSelectPlaylist={setSelectedPlaylist}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        sortColumn={sortColumn}
+        sortDirection={sortDirection}
+        onSort={handleSort}
+        filteredTracks={getFilteredTracks()}
+        fileEntries={fileEntries}
+        directoryPath={directoryPath}
+        onNavigateToDirectory={navigateToDirectory}
+        onNavigateUp={navigateUp}
+        onLoadFileEntries={loadFileEntries}
+        onReset={reset}
       />
     );
   }
 
+  // Show landing screen for all other states
   return (
     <LandingScreen
-      status={rekordbox.status}
-      onSelectFolder={rekordbox.selectFolder}
-      onFullScan={rekordbox.performFullScan}
-      onReset={rekordbox.reset}
-      onSelectFile={rekordbox.triggerFileInput}
-      fileInputRef={rekordbox.fileInputRef}
-      onFileInput={rekordbox.handleFileInput}
+      status={status}
+      onSelectFolder={selectFolder}
+      onFullScan={performFullScan}
+      onReset={reset}
+      onSelectFile={triggerFileInput}
+      fileInputRef={fileInputRef}
+      onFileInput={handleFileInput}
     />
   );
 };

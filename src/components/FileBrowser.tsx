@@ -24,9 +24,7 @@ export function FileBrowser({ entries, path, onNavigate, onNavigateUp }: FileBro
           size="icon"
           disabled={!canGoUp}
           onClick={onNavigateUp}
-          className="h-10 w-10"
-          aria-label="Go up one folder"
-          title="Go up one folder"
+          className="h-8 w-8"
         >
           <ArrowUp className="h-4 w-4" />
         </Button>
@@ -60,25 +58,11 @@ export function FileBrowser({ entries, path, onNavigate, onNavigateUp }: FileBro
               </TableRow>
             ) : (
               entries.map((entry, index) => (
-                <TableRow
+                <TableRow 
                   key={index}
-                  // Folders are activatable, so they must be reachable and
-                  // operable from the keyboard, not just by mouse.
-                  role={entry.isDirectory ? 'button' : undefined}
-                  tabIndex={entry.isDirectory ? 0 : undefined}
-                  aria-label={entry.isDirectory ? `Open folder ${entry.name}` : undefined}
-                  className={`border-border transition-colors hover:bg-row-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
-                    entry.isDirectory ? 'cursor-pointer' : ''
-                  }`}
+                  className="cursor-pointer border-border transition-colors hover:bg-row-hover"
                   onClick={() => {
                     if (entry.isDirectory) {
-                      onNavigate(entry.handle as FileSystemDirectoryHandle, entry.name);
-                    }
-                  }}
-                  onKeyDown={(event) => {
-                    if (!entry.isDirectory) return;
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
                       onNavigate(entry.handle as FileSystemDirectoryHandle, entry.name);
                     }
                   }}

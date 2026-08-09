@@ -1,25 +1,16 @@
 import { useState } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Files,
-  Folder,
-  FolderOpen,
-  HardDrive,
-  HelpCircle,
-  ListMusic,
-  Monitor,
-  Music,
-  RotateCcw,
-  ShieldCheck,
-} from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Music, ListMusic, Files, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { SettingsPanel } from './SettingsPanel';
-import type { LibraryPresence, Playlist, ViewMode } from '@/types/rekordbox';
-import type { SettingsApi } from '@/hooks/useSettings';
+import type { Playlist, ViewMode, LibraryPresence } from '@/types/rekordbox';
+import { SettingsPanel, type ColorScheme } from './SettingsPanel';
+import { Monitor, HelpCircle, HardDrive } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 interface PlaylistSidebarProps {
   playlists: Playlist[];
@@ -30,9 +21,12 @@ interface PlaylistSidebarProps {
   onViewModeChange: (mode: ViewMode) => void;
   trackCount: number;
   onReset: () => void;
-  settings: SettingsApi;
-  onOpenBackups: () => void;
-  onOpenDevices: () => void;
+  colorScheme: ColorScheme;
+  onColorSchemeChange: (scheme: ColorScheme) => void;
+  fontSize: number;
+  onFontSizeChange: (size: number) => void;
+  hiddenColumns: string[];
+  onToggleColumn: (key: string) => void;
 }
 
 interface PlaylistItemProps {
@@ -50,52 +44,51 @@ function PlaylistItem({ playlist, depth, selectedId, onSelect }: PlaylistItemPro
   return (
     <div>
       <button
-        type="button"
         onClick={() => {
-          if (playlist.isFolder && hasChildren) setExpanded((value) => !value);
+          if (playlist.isFolder && hasChildren) {
+            setExpanded(!expanded);
+          }
           onSelect(playlist);
         }}
-        aria-expanded={hasChildren ? expanded : undefined}
         className={cn(
-          'flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-          'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          isSelected && 'bg-sidebar-accent text-sidebar-accent-foreground'
+          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          isSelected && "bg-sidebar-accent text-sidebar-accent-foreground"
         )}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
         {playlist.isFolder && hasChildren ? (
           expanded ? (
-            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
           ) : (
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
           )
         ) : (
           <span className="w-4" />
         )}
-
+        
         {playlist.isFolder ? (
           expanded ? (
-            <FolderOpen className="h-4 w-4 shrink-0 text-primary" />
+            <FolderOpen className="h-4 w-4 flex-shrink-0 text-primary" />
           ) : (
-            <Folder className="h-4 w-4 shrink-0 text-primary" />
+            <Folder className="h-4 w-4 flex-shrink-0 text-primary" />
           )
         ) : (
-          <ListMusic className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <ListMusic className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
         )}
-
+        
         <span className="truncate">{playlist.name}</span>
-
+        
         {!playlist.isFolder && playlist.trackIds.length > 0 && (
-          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+          <span className="ml-auto text-xs text-muted-foreground">
             {playlist.trackIds.length}
           </span>
         )}
       </button>
-
+      
       {expanded && hasChildren && (
         <div>
-          {playlist.children.map((child) => (
+          {playlist.children.map(child => (
             <PlaylistItem
               key={child.id}
               playlist={child}
@@ -113,41 +106,37 @@ function PlaylistItem({ playlist, depth, selectedId, onSelect }: PlaylistItemPro
 function CompatibilityIndicator({ libraries }: { libraries?: LibraryPresence }) {
   if (!libraries) return null;
 
-  let label = 'Unknown';
-  let description = 'Unable to determine compatibility.';
+  let label = "Unknown";
+  let description = "Unable to determine compatibility.";
   let icon = <HelpCircle className="h-4 w-4 text-muted-foreground" />;
 
   if (libraries.hasLegacy && libraries.hasPlus) {
-    label = 'Universal';
-    description =
-      'Both library formats are present. Reads on everything from a CDJ-2000 to an OPUS-QUAD.';
+    label = "Universal";
+    description = "Compatible with all Rekordbox devices (CDJ-2000/NXS/3000/Opus)";
     icon = <Monitor className="h-4 w-4 text-green-500" />;
   } else if (libraries.hasLegacy) {
-    label = 'Legacy';
-    description =
-      'Works on CDJ-2000/900/NXS/NXS2, CDJ-3000 and XDJ series. OPUS-QUAD, OMNIS-DUO, XDJ-AZ and CDJ-3000X need Device Library Plus — plug this drive into rekordbox 6.6.11+ and let it convert.';
+    label = "Standard";
+    description = "Compatible with CDJ-2000, 900, NXS, XDJ series. Not optimized for Opus-Quad.";
     icon = <Monitor className="h-4 w-4 text-blue-500" />;
   } else if (libraries.hasPlus) {
-    label = 'Plus only';
-    description =
-      'Device Library Plus only. Newer gear reads it; older CDJs will not see anything on this drive.';
+    label = "Modern";
+    description = "Compatible with CDJ-3000 and Opus-Quad only. Not readable by older CDJs.";
     icon = <Monitor className="h-4 w-4 text-orange-500" />;
   }
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="flex min-h-10 items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
+        <button className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-sidebar-accent rounded-md transition-colors outline-none">
           {icon}
           <span className="font-medium text-muted-foreground">{label}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent side="top" className="w-72">
-        <h4 className="font-medium leading-none">Player compatibility</h4>
-        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      <PopoverContent side="right" className="w-64">
+        <div className="space-y-2">
+          <h4 className="font-medium leading-none">Compatibility</h4>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -162,39 +151,42 @@ export function PlaylistSidebar({
   onViewModeChange,
   trackCount,
   onReset,
-  settings,
-  onOpenBackups,
-  onOpenDevices,
+  colorScheme,
+  onColorSchemeChange,
+  fontSize,
+  onFontSizeChange,
+  hiddenColumns,
+  onToggleColumn
 }: PlaylistSidebarProps) {
   return (
     <div className="flex h-full w-full min-w-0 flex-col border-r border-sidebar-border bg-sidebar">
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-sidebar-border p-3">
         <h2 className="font-semibold text-sidebar-foreground">Library</h2>
         <Button
           variant="ghost"
           size="icon"
           onClick={onReset}
-          className="h-10 w-10 text-sidebar-foreground hover:bg-sidebar-accent"
+          className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent"
           title="Change USB"
-          aria-label="Change USB"
         >
           <RotateCcw className="h-4 w-4" />
         </Button>
       </div>
 
+      {/* Navigation */}
       <ScrollArea className="flex-1">
         <div className="p-2">
+          {/* All Tracks */}
           <button
-            type="button"
             onClick={() => {
               onViewModeChange('library');
               onSelectPlaylist(null);
             }}
             className={cn(
-              'flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-              'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              viewMode === 'library' && !selectedPlaylist && 'bg-sidebar-accent text-sidebar-accent-foreground'
+              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+              "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              viewMode === 'library' && !selectedPlaylist && "bg-sidebar-accent text-sidebar-accent-foreground"
             )}
           >
             <Music className="h-4 w-4 text-primary" />
@@ -202,34 +194,34 @@ export function PlaylistSidebar({
             <span className="ml-auto text-xs text-muted-foreground">{trackCount}</span>
           </button>
 
+          {/* Browse Files */}
           <button
-            type="button"
             onClick={() => onViewModeChange('files')}
             className={cn(
-              'flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-              'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              viewMode === 'files' && 'bg-sidebar-accent text-sidebar-accent-foreground'
+              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+              "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              viewMode === 'files' && "bg-sidebar-accent text-sidebar-accent-foreground"
             )}
           >
             <Files className="h-4 w-4 text-muted-foreground" />
             <span>Browse Files</span>
           </button>
 
+          {/* Playlists Section */}
           {playlists.length > 0 && (
             <div className="mt-4">
               <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Playlists
               </p>
-              {playlists.map((playlist) => (
+              {playlists.map(playlist => (
                 <PlaylistItem
                   key={playlist.id}
                   playlist={playlist}
                   depth={0}
                   selectedId={selectedPlaylist?.id ?? null}
-                  onSelect={(selected) => {
+                  onSelect={(p) => {
                     onViewModeChange('library');
-                    onSelectPlaylist(selected);
+                    onSelectPlaylist(p);
                   }}
                 />
               ))}
@@ -238,28 +230,17 @@ export function PlaylistSidebar({
         </div>
       </ScrollArea>
 
-      <div className="space-y-1 border-t border-sidebar-border p-2">
-        <button
-          type="button"
-          onClick={onOpenBackups}
-          className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          <span>Backups &amp; recovery</span>
-        </button>
-        <button
-          type="button"
-          onClick={onOpenDevices}
-          className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <HardDrive className="h-4 w-4 text-muted-foreground" />
-          <span>My drives</span>
-        </button>
-
-        <div className="flex items-center gap-2 pt-1">
-          <SettingsPanel settings={settings} />
-          <CompatibilityIndicator libraries={libraries} />
-        </div>
+      {/* Settings button in bottom left */}
+      <div className="border-t border-sidebar-border p-2 flex items-center gap-2">
+        <SettingsPanel
+          colorScheme={colorScheme}
+          onColorSchemeChange={onColorSchemeChange}
+          fontSize={fontSize}
+          onFontSizeChange={onFontSizeChange}
+          hiddenColumns={hiddenColumns}
+          onToggleColumn={onToggleColumn}
+        />
+        <CompatibilityIndicator libraries={libraries} />
       </div>
     </div>
   );
