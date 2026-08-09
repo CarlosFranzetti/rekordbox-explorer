@@ -1,53 +1,88 @@
 # Rekordbox Explorer — CLAUDE.md
 
-Browser-based viewer for Rekordbox USB exports. Parses the binary `export.pdb` file directly in the browser — no server, no uploads.
+Browser-based viewer for rekordbox USB exports. Parses the binary `export.pdb` directly
+in the browser — no server, no uploads.
+
+## ⚠️ Read `memorystate.md` first
+
+Two branches, and **which one you are on changes everything**:
+
+| Branch | Contents | Deployed |
+|---|---|---|
+| **`main`** (this one) | The stable **viewer**. `src/lib/rekordbox-parser.ts` + components. | ✅ Yes |
+| **`for-later`** | The **editor** release: `lib/pdb/`, `lib/usb/`, `lib/export/`, playlist editor, backups, device registry, 155 tests. | ⏸️ Rolled back |
+
+The editor was deployed and rolled back after production issues that were never
+diagnosed. Do not re-land it without working through P0 in `roadmap.md`.
+
+**Branch rule:** write path, editor, backups, device registry → **`for-later`**.
+Low-risk viewer work and docs → **`main`**.
+
+Also: **Vercel Instant Rollback pins the production alias.** Pushing to `main` builds but
+does not promote. A human must click *Promote to Production*.
 
 ## Tech Stack
 
-- **React 18** + **Vite** (SWC) + **TypeScript**
-- **TailwindCSS 3** for styling
-- **shadcn/ui** (Radix UI primitives) for all UI components — components live in `src/components/ui/`
-- **React Router DOM 6** for routing
-- **next-themes** for dark/light/custom theme management
-- **jsPDF + jspdf-autotable** for PDF export
-- **react-qr-code** for QR code generation (donate section)
-- **Vitest** for testing
+React 18 · Vite (SWC) · TypeScript · TailwindCSS 3 · shadcn/ui (Radix) · React Router 6 ·
+jsPDF · react-qr-code · Vitest. **No backend.**
 
-## Key Files
+## Key Files (on `main`)
 
 | File | Purpose |
-|------|---------|
-| `src/pages/Index.tsx` | Entry page — switches between LandingScreen and LibraryView |
-| `src/components/LandingScreen.tsx` | File/folder selection UI (the "home screen") |
-| `src/components/LibraryView.tsx` | Main library layout (sidebar + track table) |
-| `src/components/PlaylistSidebar.tsx` | Playlist tree, settings button, theme/font controls |
-| `src/components/TrackTable.tsx` | Resizable, sortable track table with drag-and-drop columns |
-| `src/components/DonateSection.tsx` | Donation buttons shown at bottom of landing card |
+|---|---|
+| `src/pages/Index.tsx` | Switches between LandingScreen and LibraryView |
+| `src/components/LandingScreen.tsx` | File/folder selection |
+| `src/components/LibraryView.tsx` | Sidebar + track table |
+| `src/components/PlaylistSidebar.tsx` | Playlist tree, settings, theme/font |
+| `src/components/TrackTable.tsx` | Resizable, sortable, drag-and-drop columns |
 | `src/lib/rekordbox-parser.ts` | Binary `.pdb` parser — the core engine |
-| `src/lib/pdf-export.ts` | PDF generation logic |
-| `src/hooks/useRekordbox.ts` | Data loading, File System Access API, state management |
-| `src/hooks/useSettings.ts` | Settings persistence via localStorage (theme, font, columns) |
-| `src/types/rekordbox.ts` | TypeScript interfaces (Track, Playlist, RekordboxDatabase, etc.) |
+| `src/lib/pdf-export.ts` | PDF generation |
+| `src/hooks/useRekordbox.ts` | Loading, File System Access API, state |
+| `src/hooks/useSettings.ts` | localStorage preferences |
+| `src/types/rekordbox.ts` | Track, Playlist, RekordboxDatabase |
 
 ## Dev Commands
 
 ```bash
-npm run dev      # start dev server (localhost:8080)
-npm run build    # production build
-npm run preview  # preview production build
-npm test         # run Vitest tests
+npm run dev      # localhost:8080
+npm run build
+npm run preview
+npm test
 ```
 
-## Important Notes
+## Important notes
 
-- **File System Access API**: Used for folder selection (Chrome/Edge/Opera). Safari/iOS falls back to single-file input (`<input type="file">`). See `isFileSystemAccessSupported()` in `useRekordbox.ts`.
-- **Settings persistence**: All user preferences (theme, font size, column visibility/order/widths) are stored in `localStorage`.
-- **Themes**: Defined as CSS variables in `src/index.css`. Supported: `dark`, `midnight`, `light` (sepia), `arctic`. Managed via `next-themes` and `useSettings`.
-- **Hardware compatibility**: Detects Legacy library (`export.pdb`) vs Device Library Plus (`exportExt.pdb`) to show CDJ compatibility info.
-- **No backend**: The entire app runs client-side. There is no server component.
-- **Binary parser**: `rekordbox-parser.ts` reads Pioneer's proprietary `.pdb` format directly as `ArrayBuffer` in the browser.
+- **File System Access API** for folders (Chrome/Edge/Opera). Safari/iOS falls back to a
+  single-file input and is read-only.
+- **Themes** are CSS variables in `src/index.css`: `dark`, `midnight`, `light` (sepia),
+  `arctic`. Primary is `hsl(200 100% 50%)` = `#00AAFF`.
+- **Icons** in `public/` are the hard-drive-in-a-circle mark, all local. The originals
+  were hotlinked from Lovable's upload bucket — don't reintroduce remote icon URLs.
+- **Binary parser** reads Pioneer's `.pdb` as an `ArrayBuffer`. When touching it, prefer
+  *degrade gracefully* over *throw* — over-strict validation is a prime suspect for the
+  rollback. See `database.md` §1 and `memorystate.md` §2.
+- **No `console.log` in shipping paths.**
 
-## Donation Links (DonateSection)
+## If you are working on the write path (`for-later`)
 
-- PayPal: `https://paypal.me/losfiesta`
-- Cash App: `https://cash.app/$hypedrum`
+Six invariants, each enforced by a test. Do not break them:
+
+1. A write only ever **appends**; the only bytes patched in the original region are the
+   file header's `sequence`/`next_unused_page`, playlist table pointers, and one
+   chain-graft `next_page`.
+2. No write without a **verified backup** in at least one vault.
+3. A failed write **rolls back** automatically.
+4. A restore is itself **snapshotted first**.
+5. A damaged backup **never overwrites** a good library.
+6. Malformed input never hangs or throws out of the parser.
+
+Only playlist tables (types 7 and 8) are ever written.
+
+## Writing for users
+
+Error messages are read by a DJ ten minutes before doors. Say what happened, what state
+the drive is in, and what to do. Never make someone guess whether their library survived.
+
+## Donation Links
+
+PayPal `https://paypal.me/losfiesta` · Cash App `https://cash.app/$hypedrum`
