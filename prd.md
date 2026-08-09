@@ -1,6 +1,11 @@
 # Rekordbox Explorer — Product Requirements
 
-**Status:** v0.3 shipped · **Owner:** Carlos Franzetti
+**Status:** viewer live on `main`; editor built and parked on `for-later` after a
+production rollback · **Owner:** Carlos Franzetti
+
+> Everything under "Shipped (v0.3)" below is **built and tested but not currently
+> deployed** — it lives on `for-later`. Production serves the viewer. See
+> `memorystate.md`.
 
 ---
 
@@ -34,7 +39,7 @@ answer is *reformat and re-export*.
 
 ## 4. Scope
 
-### Shipped (v0.3)
+### Built (v0.3 — parked on `for-later`)
 
 | Area | Requirement |
 |---|---|

@@ -1,5 +1,10 @@
 # Rekordbox Explorer — Technical Reference
 
+> **Branch note.** This describes the architecture of the **editor** release, which lives
+> on **`for-later`** — not on `main`. `main` is the stable viewer: `src/lib/rekordbox-parser.ts`
+> plus the components, with no `lib/pdb/`, `lib/usb/` or `lib/export/`. See `memorystate.md`
+> for why, and `roadmap.md` for what re-lands where.
+
 How it is built and why. Format details live in `research_playlistHelp.md`.
 
 ---
