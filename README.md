@@ -2,13 +2,12 @@
 
 # 🎧 Rekordbox Explorer
 
-**Open your rekordbox USB in a browser. Browse it, edit playlists, print setlists.**
-**Nothing is uploaded. Nothing is installed.**
+**Your rekordbox USB, in the browser. No uploads. No installs.**
 
 [Open the app](https://rekordbox-explorer.vercel.app) ·
 [What it does](#what-it-does) ·
-[Editing &amp; safety](#editing-playlists) ·
 [Player compatibility](#will-my-player-read-it) ·
+[Project state](#project-state) ·
 [Support it](#support-the-project)
 
 </div>
@@ -24,118 +23,88 @@ machine.
 
 | | |
 |---|---|
-| ⚡ **Reads your drive instantly** | Tracks, artists, albums, genres, keys, labels, the full playlist tree. No install, no wait. |
-| ✏️ **Edits playlists** | Create, rename, delete, reorder. Add and remove tracks. Undo/redo. Then write it back to the USB. |
-| 🛡️ **Refuses to lose your library** | Two verified backups on the drive before any write, read-back verification after, automatic rollback if anything fails. |
-| 🆘 **Recovers when it goes wrong** | Browse, verify and restore backups in-app — plus a plain-text rescue guide written to the drive itself. |
-| 💾 **Remembers every drive** | Search across every stick you have ever opened. Find which one has that track. |
-| 📄 **Exports six ways** | PDF · print · CSV · M3U8 · plain text · JSON · rekordbox XML. |
+| ⚡ **Reads your drive instantly** | Tracks, artists, albums, genres, keys, labels, the full playlist tree. |
+| 🔍 **Search and sort** | Resizable, reorderable columns. Browse raw files too. |
+| 📄 **PDF setlists** | Printable, respects your visible columns. |
 | 🎛️ **Tells you the truth about hardware** | Which players will read this drive, and which will not. |
-| 🌗 **Readable in a dark booth** | Four themes, text scaling to 28 px, real touch targets, works on a phone. |
+| 🌗 **Readable in a dark booth** | Four themes, font scaling, works on a phone. |
 
 ## Quick start
 
 1. Plug in your rekordbox USB.
 2. Open the app in **Chrome, Edge or Opera** on a desktop.
 3. Click **Select USB or Folder** and pick the drive's root.
-4. Browse. Edit. Export.
 
-**On iPhone / iPad / Safari / Firefox:** these browsers cannot open folders, so you get
-read-only mode. Tap **Select export.pdb File**, then navigate to
-`PIONEER` → `rekordbox` → `export.pdb`. You can browse and export; editing needs a desktop
-Chromium browser.
-
-## Editing playlists
-
-Edits are staged in the browser and undoable. Nothing touches the drive until you press
-**Save to USB**. Then, in order:
-
-```
-1  Request write access          5  Re-parse it and confirm it says what we meant
-2  Read the current library      6  Write to the drive
-3  Back up to TWO places         7  Read it back, compare SHA-256, re-parse
-   and verify every byte         8  Refresh the recovery note
-4  Build the new library
-```
-
-If step 6 or 7 fails, **the backup from step 3 is restored automatically** before you see
-the error. There is no path that leaves the drive in a state that was not verified or
-rolled back.
-
-### What is never touched
-
-Your audio files. Waveforms, beatgrids, hot cues and memory points (those live in separate
-analysis files). Track, artist, album and artwork records. Only playlist tables are
-rewritten, and only by **appending new pages** — every existing byte survives intact.
-
-### Backups
-
-Every snapshot is written to two different folders on the drive, so losing one folder
-cannot lose your history:
-
-```
-/RBXPLORER_BACKUPS/                       ← vault 1
-/PIONEER/rekordbox/RBXPLORER_SAFETY/      ← vault 2
-/WHATTODOIFTHISWENTTOSHIT.txt             ← offline rescue guide
-```
-
-Each snapshot carries SHA-256 checksums and is verified on write. Keep 3–20 (default 5).
-Restoring is itself snapshotted first, so it is undoable. You can export any snapshot — or
-all of them — as a ZIP.
-
-That `.txt` at the drive root is not a joke file. If your library breaks at a gig with no
-internet, it walks you through restoring it with nothing but a file manager.
+**On iPhone / iPad / Safari / Firefox:** these browsers cannot open folders. Tap
+**Select export.pdb File**, then navigate to `PIONEER` → `rekordbox` → `export.pdb`.
 
 ## Will my player read it?
 
-| Hardware | Reads a drive this app writes |
+| Hardware | Reads `export.pdb` |
 |---|---|
 | CDJ-2000 / nexus / NXS2, CDJ-900 | ✅ |
 | CDJ-3000 (firmware ≤ 3.22) | ✅ |
 | XDJ-1000 / RX / RX2 / XZ | ✅ |
 | **OPUS-QUAD, OMNIS-DUO, XDJ-AZ, CDJ-3000X** | ❌ needs Device Library Plus |
 
-Newer gear requires AlphaTheta's newer encrypted format, which this app does not write.
-The fix: plug the drive into **rekordbox 6.6.11 or later** and let it convert the device
-library. Your playlists carry over. The app tells you which case you are in.
+Newer gear requires AlphaTheta's newer encrypted format. Plug the drive into **rekordbox
+6.6.11 or later** and let it convert the device library — your playlists carry over. The
+app tells you which case you are in.
+
+## Project state
+
+Two branches, on purpose:
+
+| Branch | What | Status |
+|---|---|---|
+| **`main`** | The **viewer** described above | ✅ Live |
+| **`for-later`** | The **playlist editor**: create/edit playlists and write them back to the USB, with dual verified on-drive backups, a verified write pipeline with automatic rollback, a cross-drive device registry, six export formats, and 155 tests | ⏸️ Built, then rolled back from production. Parked pending diagnosis. |
+
+The editor release was merged, deployed, and rolled back after issues in production. The
+work is intact on `for-later`; nothing was lost. What is known, what is suspected, and
+what has to happen before it re-lands is written up in **[`memorystate.md`](memorystate.md)**
+and **[`roadmap.md`](roadmap.md)**.
+
+**If you hit a bug, a console error is worth more than a bug report.** That is the one
+thing currently blocking the editor from shipping.
+
+## Documentation
+
+| | |
+|---|---|
+| [`memorystate.md`](memorystate.md) | Current state, decisions with reasons, landmines. **Start here.** |
+| [`roadmap.md`](roadmap.md) | What's missing, and which branch each item belongs on |
+| [`database.md`](database.md) | Which Pioneer databases we read/write and why — the case for and against each |
+| [`research_playlistHelp.md`](research_playlistHelp.md) | Full `.pdb` format reference and the corruption analysis |
+| [`prd.md`](prd.md) · [`trd.md`](trd.md) | Product scope · architecture |
+| [`PRIVACY.md`](PRIVACY.md) · [`SECURITY.md`](SECURITY.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) | |
 
 ## Development
 
 ```bash
 npm install
 npm run dev      # http://localhost:8080
-npm test         # 155 tests
 npm run build
-npm run lint
+npm test
 ```
 
-Architecture, format details and safety invariants: **[`trd.md`](trd.md)**.
-Product scope: **[`prd.md`](prd.md)**. What's next: **[`roadmap.md`](roadmap.md)**.
-The full format research — page layouts, row structures, corruption analysis, hardware
-compatibility — is in **[`research_playlistHelp.md`](research_playlistHelp.md)**.
-
-### How it is built
-
-React 18 · Vite · TypeScript · Tailwind · shadcn/ui · Vitest. No backend, no accounts, no
-network calls with your data. The binary parser is hand-written against the
+React 18 · Vite · TypeScript · Tailwind · shadcn/ui. No backend, no accounts. The binary
+parser is hand-written against the
 [crate-digger](https://github.com/Deep-Symmetry/crate-digger) Kaitai spec.
 
 ## Privacy
 
-Your library never leaves the browser — no uploads, no accounts, no server. The hosted
-build does load Vercel's analytics script for anonymous page-view counts; details and how
-to avoid it in [`PRIVACY.md`](PRIVACY.md).
+Your library never leaves the browser. The hosted build loads Vercel's analytics script
+for anonymous page-view counts — details in [`PRIVACY.md`](PRIVACY.md).
 
 ## Support the project
 
-It is free, has no accounts, and never uploads your data. If it saved you a headache:
+Free, no accounts, never uploads your data. If it saved you a headache:
 
 | | |
 |---|---|
 | **PayPal** | [paypal.me/losfiesta](https://paypal.me/losfiesta) |
 | **Cash App** | [$hypedrum](https://cash.app/$hypedrum) |
-
-Both are one tap in the app — QR codes too, on the landing screen.
 
 ## Credits
 
