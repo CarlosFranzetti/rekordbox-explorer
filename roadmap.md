@@ -1,0 +1,108 @@
+# Roadmap
+
+Every item says **which branch it belongs on**. Two branches are live:
+
+| Branch | What it is | Deploys? |
+|---|---|---|
+| **`main`** | The stable **viewer** + current icon set. What production serves. | Yes (needs manual promote — see `memorystate.md` §1) |
+| **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 155 tests. | No — unmerged |
+
+**Rule:** anything touching the write path, the editor, backups, or the device registry
+goes on **`for-later`**. Only low-risk viewer work and docs go on **`main`**.
+
+---
+
+## P0 — Unblock the rollback → `for-later`
+
+Nothing re-lands until these are done.
+
+- [ ] **Capture the actual production error.** Console output or a repro. Everything below
+      item 2 is educated guessing without it. → *needs the user*
+- [ ] **Add a React error boundary** around the app. There isn't one, so any render-time
+      throw is a blank white page — which is what a broken deploy looks like from outside.
+      `src/App.tsx` → `for-later`
+- [ ] **Relax `readFileHeader`'s page-alignment throw** to a warning. It currently rejects
+      any `export.pdb` whose size isn't an exact multiple of the page size; the old parser
+      never required that. `src/lib/pdb/structure.ts` → `for-later`
+- [ ] **Soften the other new hard-fails**: table-count cap (64 vs the old 1000), and
+      `walkTablePages` bailing on a type mismatch. Prefer "skip and carry on" over "throw".
+      → `for-later`
+- [ ] **Harden IndexedDB**: don't cache a rejected `dbPromise`, handle `onblocked`, and add
+      a timeout so a blocked open can't hang. `src/lib/device-registry.ts` → `for-later`
+- [ ] **Test against a real `export.pdb`.** Every existing test uses fixtures we generated,
+      which are page-aligned by construction — structurally blind to P0 item 3.
+      → *needs the user*
+- [ ] Re-land as a fresh PR from `for-later`, promote, and watch it.
+
+## P1 — Earn trust in the write path → `for-later`
+
+- [ ] **Hardware matrix**: create a playlist, then load on CDJ-2000NXS2 · CDJ-3000 (fw
+      ≤3.22) · XDJ-XZ · XDJ-1000MK2. Record in `docs/HARDWARE.md`.
+- [ ] **Rekordbox round-trip**: device-written playlist appears in Export mode and imports.
+- [ ] **Device Library Plus conversion**: rekordbox 6.6.11+ converts a device-written
+      legacy library so it reaches an OPUS-QUAD.
+- [ ] Drop the "beta" label on writing once all three pass.
+
+## P2 — Ship-quality gaps → `main` (safe) and `for-later` (rest)
+
+| Item | Branch |
+|---|---|
+| GitHub repo topics (`docs/TOPICS.md` has the command) | *repo setting* |
+| Upload `og-image.png` as GitHub social preview | *repo setting* |
+| Promote the pinned Vercel deployment | *Vercel setting* |
+| Bundle: main chunk is 560 KB — code-split the dialogs | `for-later` |
+| Web Worker for parsing (large libraries block the main thread) | `for-later` |
+| Accessibility + mobile fixes (currently only on `for-later`) | consider backporting to `main` |
+| `tsconfig.*.tsbuildinfo` still tracked | `main` |
+
+## P3 — Read everything → `for-later`
+
+- [ ] **ANLZ reading** (`PIONEER/USBANLZ/**/*.DAT/.EXT`) — waveform, beatgrid, hot cues,
+      memory points. Read-only. Biggest single UX jump available.
+- [ ] **Device Library Plus reading** so OPUS-QUAD-only drives stop showing as unreadable.
+      Needs SQLCipher-in-WASM. Read-only, permanently. See `database.md`.
+- [ ] **Artwork** from the `artwork` table (page type 13).
+- [ ] **History playlists** (types 11/12) — what you actually played, per gig.
+- [ ] **MyTag** from `exportExt.pdb` (types 3/4).
+
+## P4 — The crate-digging tier → `for-later`
+
+- [ ] **Compare two drives** side by side: what's on A and not B.
+- [ ] **Sync a playlist** from one drive to another.
+- [ ] **Smart playlists** — build from BPM / key / genre / rating filters, save to drive.
+- [ ] **Harmonic suggestions** — Camelot-adjacent at a compatible tempo.
+- [ ] **Drive health check** before a gig: orphaned entries, missing files, missing ANLZ,
+      filesystem type, free space.
+- [ ] **Set timeline** — durations totalled, so a printed setlist shows when you finish.
+
+## P5 — Library manager → new branch off `for-later`
+
+- [ ] **rekordbox XML import** (export already exists). Round-trips the sanctioned format.
+- [ ] **Clone a drive**, verified file by file. Most-requested DJ utility.
+- [ ] **Cross-drive dedupe** with actions, not just detection.
+- [ ] **Backup vault on disk**, not just per-drive.
+- [ ] PWA / offline install (manifest already shipped on `main`).
+
+---
+
+## Beyond this repo
+
+**rickordbox — desktop tier.** What a browser cannot do: read the rekordbox 6/7
+`master.db`, copy audio, and — the real prize — **write ANLZ files**. See `database.md`.
+
+**djOS — the umbrella.** Local-first DJ toolchain. Shared primitive: the device registry.
+
+**RA-NYC — events tier.** Locally moderated by appointed ambassadors; suggests contacts,
+events and submissions to DJs new in town. Long game: tour routing from events attended +
+Discogs + what's actually on your drives.
+
+---
+
+## Deliberately not doing
+
+| | Why |
+|---|---|
+| Writing Device Library Plus | Key known, schema not, no working precedent, key can rotate |
+| Editing track metadata | Touches string tables every other row references |
+| Cloud sync / accounts | The entire pitch is that nothing leaves your machine |
+| Bundling a rekordbox key | Reading your own data is defensible; shipping their key is not |
