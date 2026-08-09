@@ -2,30 +2,48 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- TODO: Set the document title to the name of your application -->
-    <title>RekordboxViewer</title>
-    <meta name="description" content="RekordboxViewer — web-based Rekordbox USB viewer">
-    <meta name="author" content="Lovable" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#111317" />
 
-    <!-- TODO: Update og:title to match your application name -->
-    
-    
+    <title>Rekordbox Explorer — your rekordbox USB, in the browser</title>
+    <meta
+      name="description"
+      content="Browse your rekordbox USB library in the browser. Parses export.pdb locally — no uploads, no installs."
+    />
+    <meta name="author" content="Carlos Franzetti" />
+
+    <!-- Icons: SVG for modern browsers, PNG/ICO fallbacks, apple-touch for iOS.
+         All local — the previous set pointed at Lovable's upload bucket. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/JM1ZwdcPw6bifc5hcBGh66aKnhk2/social-images/social-1768696995498-Screenshot 2026-01-17 at 7.42.49 PM.png">
+    <meta property="og:site_name" content="Rekordbox Explorer" />
+    <meta property="og:title" content="Rekordbox Explorer" />
+    <meta
+      property="og:description"
+      content="Browse your rekordbox USB library in the browser. Parses export.pdb locally — no uploads, no installs."
+    />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/JM1ZwdcPw6bifc5hcBGh66aKnhk2/social-images/social-1768696995498-Screenshot 2026-01-17 at 7.42.49 PM.png">
-    <meta property="og:title" content="RekordboxViewer">
-  <meta name="twitter:title" content="RekordboxViewer">
-  <meta property="og:description" content="RekordboxViewer — web-based Rekordbox USB viewer">
-  <meta name="twitter:description" content="RekordboxViewer — web-based Rekordbox USB viewer">
-  <link rel="icon" type="image/png" href="https://storage.googleapis.com/gpt-engineer-file-uploads/JM1ZwdcPw6bifc5hcBGh66aKnhk2/uploads/1768697002831-Screenshot 2026-01-17 at 7.43.01 PM.png">
-</head>
+    <meta name="twitter:title" content="Rekordbox Explorer" />
+    <meta
+      name="twitter:description"
+      content="Browse your rekordbox USB library in the browser. Parses export.pdb locally — no uploads, no installs."
+    />
+    <meta name="twitter:image" content="/og-image.png" />
+  </head>
 
   <body>
     <div id="root"></div>
+    <noscript>Rekordbox Explorer needs JavaScript — it parses your USB entirely in the browser.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -79,7 +79,7 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
             <HardDrive className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold text-foreground">
-            RekordboxViewer
+            Rekordbox Explorer
           </CardTitle>
           <CardDescription className="text-muted-foreground">
             Browse your Rekordbox USB library without loading the full app
