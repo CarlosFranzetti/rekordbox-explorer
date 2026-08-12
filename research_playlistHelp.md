@@ -205,16 +205,16 @@ importable by rekordbox. Zero legal or corruption risk. **This app now exports i
 (`src/lib/export/exporters.ts`). Any third-party tool should treat this as its primary
 read/write channel.
 
-**USB export** — a PDB writer plus an ANLZ writer. The PDB half is documented; the ANLZ
-half (`PIONEER/USBANLZ/**/ANLZ0000.DAT/.EXT`) is where quality lives. No ANLZ means tracks
+**USB export** — a PDB writer plus a `.luba` writer. The PDB half is documented; the `.luba`
+half (`PIONEER/USBANLZ/**/ANLZ0000.DAT/.EXT`) is where quality lives. No `.luba` data means tracks
 play but show no waveform, no beatgrid and no hot cues.
 
 ### Note on rickordbox / djOS
 
 [rickordbox](https://github.com/CarlosFranzetti/rickordbox) claims "10× faster than
 rekordbox" by skipping analysis and delegating it to the hardware. **CDJs do not analyse
-tracks.** An export with no ANLZ files gives you a library that plays but is not usable for
-performance. Getting it to "actually work" means writing ANLZ — that is the real cost, not
+tracks.** An export with no `.luba` files gives you a library that plays but is not usable for
+performance. Getting it to "actually work" means writing `.luba` — that is the real cost, not
 the PDB.
 
 **Legal footing:** AlphaTheta's EULA prohibits reverse engineering, and the Device Library

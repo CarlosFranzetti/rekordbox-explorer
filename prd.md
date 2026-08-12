@@ -59,7 +59,7 @@ answer is *reformat and re-export*.
 - **Writing Device Library Plus / OneLibrary.** Key is known, schema is not, nobody has
   demonstrated a working writer, and AlphaTheta can rotate the key. Users are pointed at
   rekordbox's own conversion instead.
-- **Writing ANLZ files** (waveforms, beatgrids, hot cues). Different format, much larger
+- **Writing `.luba` files** (waveforms, beatgrids, hot cues). Different format, much larger
   job, and the failure mode is a library that looks fine and is useless on stage.
 - **Editing track metadata.** Retagging touches string tables shared with every other row —
   far riskier than playlists for far less benefit.
@@ -98,5 +98,5 @@ Current state is snapshotted first, so the restore is undoable.
 
 ## 8. Where it goes next
 
-See `roadmap.md`. Short version: hardware validation → ANLZ reading → Device Library Plus
+See `roadmap.md`. Short version: hardware validation → `.luba` reading → Device Library Plus
 reading → this becomes the browser tier of a larger local-first DJ toolchain (djOS).
