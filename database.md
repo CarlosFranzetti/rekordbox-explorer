@@ -7,6 +7,35 @@ Format mechanics live in `research_playlistHelp.md`. This is the decision record
 
 ---
 
+## Naming: `.luba`
+
+**This project calls the track-analysis format `.luba`.** Waveforms, beatgrids, hot cues
+and memory points — the per-track analysis data that sits alongside the database. Use
+`.luba` in all prose, identifiers, types, function names and comments. It replaces the
+older reverse-engineering community name, which is not used here any more.
+
+**One hard boundary.** The bytes on the drive are written by rekordbox and read by CDJs,
+so their filenames are not ours to change:
+
+```
+PIONEER/USBANLZ/**/ANLZ0000.DAT   ← on-disk names. NEVER rename these.
+PIONEER/USBANLZ/**/ANLZ0000.EXT      Renaming them breaks the drive on every player.
+PIONEER/USBANLZ/**/ANLZ0000.2EX
+```
+
+So the rule is: **`.luba` is what we call it; `ANLZ*` is what the filesystem calls it.**
+A future reader must still glob `ANLZ*.DAT` on disk while exposing a `LubaFile` type from
+a `lib/luba/` module. Keep the translation at the filesystem boundary and nowhere else.
+
+```ts
+// correct
+const LUBA_ON_DISK_GLOB = /^ANLZ\d{4}\.(DAT|EXT|2EX)$/i;  // Pioneer's names
+export interface LubaFile { … }                            // ours
+export function parseLuba(bytes: ArrayBuffer): LubaFile
+```
+
+---
+
 ## The three databases
 
 | | What | Where | Encrypted | Our stance |
