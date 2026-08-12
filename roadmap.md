@@ -57,10 +57,8 @@ Nothing re-lands until these are done.
 
 ## P3 — Read everything → `for-later`
 
-- [ ] **`.luba` reading** — waveform, beatgrid, hot cues, memory points. Read-only.
-      Biggest single UX jump available. Build as `lib/luba/` exposing `LubaFile` /
-      `parseLuba()`; glob the on-disk `PIONEER/USBANLZ/**/ANLZ*.DAT|.EXT|.2EX` names only
-      at the I/O boundary — they are Pioneer's and must not be renamed.
+- [ ] **ANLZ reading** (`PIONEER/USBANLZ/**/*.DAT/.EXT`) — waveform, beatgrid, hot cues,
+      memory points. Read-only. Biggest single UX jump available.
 - [ ] **Device Library Plus reading** so OPUS-QUAD-only drives stop showing as unreadable.
       Needs SQLCipher-in-WASM. Read-only, permanently. See `database.md`.
 - [ ] **Artwork** from the `artwork` table (page type 13).
@@ -73,7 +71,7 @@ Nothing re-lands until these are done.
 - [ ] **Sync a playlist** from one drive to another.
 - [ ] **Smart playlists** — build from BPM / key / genre / rating filters, save to drive.
 - [ ] **Harmonic suggestions** — Camelot-adjacent at a compatible tempo.
-- [ ] **Drive health check** before a gig: orphaned entries, missing files, missing `.luba`,
+- [ ] **Drive health check** before a gig: orphaned entries, missing files, missing ANLZ,
       filesystem type, free space.
 - [ ] **Set timeline** — durations totalled, so a printed setlist shows when you finish.
 
@@ -90,7 +88,7 @@ Nothing re-lands until these are done.
 ## Beyond this repo
 
 **rickordbox — desktop tier.** What a browser cannot do: read the rekordbox 6/7
-`master.db`, copy audio, and — the real prize — **write `.luba` files**. See `database.md`.
+`master.db`, copy audio, and — the real prize — **write ANLZ files**. See `database.md`.
 
 **djOS — the umbrella.** Local-first DJ toolchain. Shared primitive: the device registry.
 

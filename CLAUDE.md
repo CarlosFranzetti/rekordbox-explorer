@@ -78,21 +78,6 @@ Six invariants, each enforced by a test. Do not break them:
 
 Only playlist tables (types 7 and 8) are ever written.
 
-## Naming: the analysis format is `.luba`
-
-Track-analysis data — waveforms, beatgrids, hot cues, memory points — is called **`.luba`**
-throughout this project. Use it in prose, identifiers, types, function names and comments.
-Do not reintroduce the old community name.
-
-**The one exception is the filesystem.** rekordbox writes those files and CDJs read them,
-so the on-disk names are fixed and must never be renamed:
-`PIONEER/USBANLZ/**/ANLZ0000.DAT` / `.EXT` / `.2EX`. Renaming them breaks the drive on
-every player.
-
-So: **`.luba` is our name, `ANLZ*` is the filesystem's.** Any future reader globs
-`ANLZ*.DAT` at the I/O boundary and exposes `.luba` types (`lib/luba/`, `LubaFile`,
-`parseLuba()`) everywhere above it. See `database.md` for the full rule.
-
 ## Writing for users
 
 Error messages are read by a DJ ten minutes before doors. Say what happened, what state
