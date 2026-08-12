@@ -104,7 +104,6 @@ collapses to one item.
 | **Lazy-load jsPDF** | 400 KB for a feature most sessions never use | Yes |
 | **Revert forward, don't force-push** | `main` is protected; forward revert is auditable and re-landing is one command | n/a |
 | **Local icon assets** | The old favicon/og image were hotlinked from Lovable's bucket — could vanish any time | n/a |
-| **Analysis format is called `.luba`** | Project-wide naming decision. Applies to prose, identifiers, types, functions. **On-disk `ANLZ*.DAT/.EXT/.2EX` names are unchanged** — rekordbox writes them and CDJs read them; renaming breaks the drive. See `database.md` §Naming | Yes, it's just a name |
 
 ---
 
@@ -196,8 +195,8 @@ tours from attended-events history + Discogs + actual USB contents.
 The shared primitive already exists: **the device registry** knows what is on which drive.
 
 Note on rickordbox: its README claims "10× faster than rekordbox" by skipping analysis
-and delegating it to the hardware. **CDJs do not analyse tracks.** An export with no `.luba`
-files plays but shows no waveform, no beatgrid, no cues. Writing `.luba` is the real cost of
+and delegating it to the hardware. **CDJs do not analyse tracks.** An export with no ANLZ
+files plays but shows no waveform, no beatgrid, no cues. Writing ANLZ is the real cost of
 "actually works", and it is not small.
 
 The through-line: **your library, your drives, your history — local-first, yours.**
