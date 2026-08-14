@@ -38,3 +38,6 @@ dist-ssr
 
 .gemini/
 gha-creds-*.json
+
+# TypeScript incremental build cache
+*.tsbuildinfo

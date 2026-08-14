@@ -644,7 +644,6 @@ function parseSimpleRow(
       
       if (name) {
         albums.set(id, name);
-        console.log(`Album parsed: id=${id}, name="${name}"`);
       }
       break;
     }
