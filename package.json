@@ -2,6 +2,17 @@
   "name": "rekordbox-explorer",
   "private": true,
   "version": "0.3.0",
+  "description": "Browser-based viewer and playlist editor for rekordbox USB exports. Parses and writes export.pdb locally — no server, no uploads.",
+  "license": "MIT",
+  "author": "Carlos Franzetti",
+  "homepage": "https://rekordbox-explorer.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CarlosFranzetti/rekordbox-explorer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CarlosFranzetti/rekordbox-explorer/issues"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
