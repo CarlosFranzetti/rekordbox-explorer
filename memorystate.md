@@ -26,7 +26,7 @@ re-deriving it. **Read this first.**
 4. To match git to reality, `main` was reverted **forward** to the `53fc8af` tree
    (force-push is blocked by a repo ruleset, and a forward revert is better anyway —
    auditable, and re-landing is one `git revert`).
-5. The Lovable scaffold icons were replaced with the hard-drive-in-a-circle mark.
+5. The original scaffold icons were replaced with the hard-drive-in-a-circle mark.
 
 ### ⚠️ Instant Rollback pins the production alias
 
@@ -199,10 +199,13 @@ console error or a real `export.pdb`.
   own rule, fired once per album row on every load. **Fixed 2026-08-14.**
 - **Dead `rating > 255` check** on a `getUint8` — impossible condition dressed as a
   validation. Harmless, misleading.
-- **`main` still carries the Lovable scaffold's bloat**: `NavLink.tsx` (zero imports),
-  ~20 unreferenced shadcn components, 24 unused dependencies (including
-  `@tanstack/react-query` with zero `useQuery` calls), and an eager top-level `jspdf`
-  import (~400 KB in the main chunk). `for-later` already trimmed all of it.
+- **`main` carried the original scaffold's bloat** — **cleared 2026-08-14.** 42 dead
+  modules deleted (`NavLink.tsx`, 39 unreferenced shadcn components and variant files,
+  two orphan hooks) and 35 unused packages removed, including `@tanstack/react-query`
+  (imported in `App.tsx` with zero `useQuery` calls anywhere) and the scaffold's
+  component-tagger Vite plugin. Verified by transitive reachability from `main.tsx` plus the test entry
+  points, not by grep. The eager top-level `jspdf` import (~400 KB) is still there — see
+  the roadmap.
 
 ### Security audit — clean
 
@@ -239,7 +242,7 @@ user can supply the actual console error, most of this list collapses to one ite
 | **Dropped `@tanstack/react-query`** | Zero `useQuery` calls existed. No network to fetch from | Yes |
 | **Lazy-load jsPDF** | 400 KB for a feature most sessions never use | Yes |
 | **Revert forward, don't force-push** | `main` is protected; forward revert is auditable and re-landing is one command | n/a |
-| **Local icon assets** | The old favicon/og image were hotlinked from Lovable's bucket — could vanish any time | n/a |
+| **Local icon assets** | The old favicon/og image were hotlinked from a third-party bucket — could vanish any time | n/a |
 
 ---
 
