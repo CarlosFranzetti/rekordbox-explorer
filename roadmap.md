@@ -4,11 +4,16 @@ Every item says **which branch it belongs on**. Two branches are live:
 
 | Branch | What it is | Deploys? |
 |---|---|---|
-| **`main`** | The stable **viewer** + current icon set. What production serves. | Yes (needs manual promote — see `memorystate.md` §1) |
-| **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 155 tests. | No — unmerged |
+| **`main`** | The stable **viewer** + current icon set. What production serves. | Production — builds automatically, **needs a manual promote** (see `memorystate.md` §1) |
+| **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 155 tests. | Preview — auto-deploys to `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` |
+
+A third remote branch, `claude/rekordbox-playlist-export-7wndye`, is stale and superseded
+by these two. It can be deleted.
 
 **Rule:** anything touching the write path, the editor, backups, or the device registry
 goes on **`for-later`**. Only low-risk viewer work and docs go on **`main`**.
+
+Full deployment topology, protection settings, and analytics state: `memorystate.md` §1b.
 
 ---
 
@@ -24,9 +29,14 @@ Nothing re-lands until these are done.
 - [ ] **Relax `readFileHeader`'s page-alignment throw** to a warning. It currently rejects
       any `export.pdb` whose size isn't an exact multiple of the page size; the old parser
       never required that. `src/lib/pdb/structure.ts` → `for-later`
-- [ ] **Soften the other new hard-fails**: table-count cap (64 vs the old 1000), and
-      `walkTablePages` bailing on a type mismatch. Prefer "skip and carry on" over "throw".
-      → `for-later`
+- [ ] **Make `walkTablePages` skip a wrong-typed page instead of ending the walk.**
+      `structure.ts:212` currently `return`s, discarding every remaining page in the chain;
+      the old parser skipped the page and kept going. Today this silently truncates a
+      library with no error shown — promoted after the 2026-08-14 review, which found it
+      fits the un-captured symptom better than the alignment throw does.
+      `src/lib/pdb/structure.ts` → `for-later`
+- [ ] **Soften the table-count cap** (64 vs the old 1000). Low real-world risk — the format
+      has ~20 known table types — but prefer "skip and carry on" over "throw". → `for-later`
 - [ ] **Harden IndexedDB**: don't cache a rejected `dbPromise`, handle `onblocked`, and add
       a timeout so a blocked open can't hang. `src/lib/device-registry.ts` → `for-later`
 - [ ] **Test against a real `export.pdb`.** Every existing test uses fixtures we generated,
@@ -49,11 +59,19 @@ Nothing re-lands until these are done.
 |---|---|
 | GitHub repo topics (`docs/TOPICS.md` has the command) | *repo setting* |
 | Upload `og-image.png` as GitHub social preview | *repo setting* |
-| Promote the pinned Vercel deployment | *Vercel setting* |
-| Bundle: main chunk is 560 KB — code-split the dialogs | `for-later` |
+| **Promote the pinned Vercel deployment** — production still serves the pre-rollback build | *Vercel setting* |
+| **Enable Web Analytics** — `<Analytics />` is mounted on both branches but the project has it off, so every beacon is dropped | *Vercel setting* |
+| **Decide on Deployment Protection** — SSO currently gates *both* production and preview; nothing is publicly reachable | *Vercel setting* |
+| Bundle: `main`'s main chunk is 863 KB (280 KB gzipped), `for-later`'s is ~560 KB — code-split the dialogs | both |
 | Web Worker for parsing (large libraries block the main thread) | `for-later` |
-| Accessibility + mobile fixes (currently only on `for-later`) | consider backporting to `main` |
-| `tsconfig.*.tsbuildinfo` still tracked | `main` |
+| **Mobile layout is broken on `main`** — `LibraryView` renders `ResizablePanelGroup` unconditionally with a mouse-only 1px drag handle. `for-later` fixed it with a `Sheet` drawer below 768px. Safari/iOS is the documented fallback audience, so this is user-facing today. | backport to `main` |
+| Accessibility fixes (currently only on `for-later`) | consider backporting to `main` |
+| Scaffold bloat on `main`: delete `NavLink.tsx`, ~20 unreferenced shadcn components, 24 unused deps (incl. `@tanstack/react-query` with zero `useQuery` calls); lazy-load `jspdf` (~400 KB eager). `for-later` already did all of it. | `main` |
+| Correct the Rescue-tab promise in `recovery-note.ts:115` — the on-drive note describes a drive-scan feature the tab does not implement | `for-later` |
+| Dead `rating > 255` check on a `getUint8` — impossible condition posing as validation | `main` |
+| ~~`tsconfig.*.tsbuildinfo` still tracked~~ — done 2026-08-14 | `main` |
+| ~~`console.log` per album row in the parser~~ — done 2026-08-14 | `main` |
+| ~~`package.json` still carried the Lovable scaffold's name/version, no `license`/`repository`~~ — done 2026-08-14 | `main` |
 
 ## P3 — Read everything → `for-later`
 
@@ -82,6 +100,21 @@ Nothing re-lands until these are done.
 - [ ] **Cross-drive dedupe** with actions, not just detection.
 - [ ] **Backup vault on disk**, not just per-drive.
 - [ ] PWA / offline install (manifest already shipped on `main`).
+
+## P6 — Open-source hygiene → `main`
+
+The repo is already open source — public, MIT, licence detected by GitHub. Nothing to
+apply to. Full explanation and reasoning in `docs/OPEN-SOURCE.md`.
+
+- [x] MIT `LICENSE` in the repo, detected by GitHub
+- [x] `README` / `CONTRIBUTING` / `SECURITY` / `PRIVACY`
+- [x] `package.json` carries `license`, `repository`, `homepage`, `bugs`
+- [ ] Repo topics (`docs/TOPICS.md`) — *repo setting*
+- [ ] Social preview image upload — *repo setting*
+- [ ] `CODE_OF_CONDUCT.md` (GitHub generates the Contributor Covenant for you)
+- [ ] Credit the reverse-engineering prior art in the README, not just in
+      `research_playlistHelp.md` — Deep Symmetry's crate-digger, @henrybetts, @flesniak
+- [ ] Tag `v0.2.0` and cut a GitHub Release
 
 ---
 
