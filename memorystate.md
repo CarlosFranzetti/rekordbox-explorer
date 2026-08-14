@@ -60,7 +60,7 @@ every pushed branch by default, and gives each branch a stable alias of the form
 `<project>-git-<branch>-<owner>.vercel.app` that always points at that branch's newest
 build. Push to `for-later` and the preview updates itself.
 
-### Public access: preview is gated, production is probably not — verify in incognito
+### Public access: production is open, every preview is gated
 
 The project has **Vercel Deployment Protection** on:
 
@@ -68,32 +68,31 @@ The project has **Vercel Deployment Protection** on:
 ssoProtection:      { enabled: true, deploymentType: "all_except_custom_domains" }
 passwordProtection: disabled
 trustedIps:         disabled
-custom domains:     none — only the three *.vercel.app hostnames
+custom domains:     none — only *.vercel.app hostnames
 ```
 
-**The preview is definitely gated.** Fetching the `for-later` alias returns
-`302 → https://vercel.com/sso-api?...` with `x-robots-tag: noindex`. A stranger cannot
-open it; it will never be indexed.
+Do not read `all_except_custom_domains` literally — it does **not** mean "everything that
+isn't a custom domain is gated." Probing all three hostnames settles what it actually does:
 
-**Production's status is unresolved and should be checked by hand.** The two available
-signals disagree:
+| Hostname | Response |
+|---|---|
+| `rekordbox-explorer.vercel.app` — the production domain | `200`, full HTML, `x-vercel-cache: HIT`, no auth challenge |
+| `rekordbox-explorer-git-main-…vercel.app` — branch alias | `302 → vercel.com/sso-api`, `x-robots-tag: noindex` |
+| `rekordbox-explorer-git-for-later-…vercel.app` — branch alias | `302 → vercel.com/sso-api`, `x-robots-tag: noindex` |
 
-- The setting name reads as "protect everything that is not a custom domain," and this
-  project has no custom domain — which would imply production is gated too.
-- But production actually served `200` with full HTML and `x-vercel-cache: HIT`, no auth
-  challenge, while the *same* client got the `302` on preview. A protected route 302s
-  before it serves cache.
+That is exactly Vercel's **Standard Protection**: the *production domain* is exempt;
+deployment URLs, branch aliases and previews are all gated. The `.vercel.app` production
+alias counts as exempt alongside any custom domain.
 
-No unauthenticated fetch was possible from the build container (the egress proxy denies
-these hosts), so this could not be settled from here. **Open
-`rekordbox-explorer.vercel.app` in a private/incognito window.** That answers it in one
-second and beats any amount of further API archaeology.
+So: **anyone can use the live app. Nobody outside the Vercel team can open the preview,
+and the preview will never be indexed** — which is the right default for a branch carrying
+an un-diagnosed rollback.
 
-If it *is* gated and you want it public: **Vercel → Project → Settings → Deployment
-Protection → Vercel Authentication**. Switching to *Standard Protection* keeps previews
-private while leaving the production domain open — the usual arrangement for a public app
-with private branch builds. Attaching a custom domain also exempts it under the current
-setting.
+To share the preview with a specific person without turning protection off, use Vercel's
+per-deployment **Share** link (it mints a `_vercel_share` token) rather than flipping the
+project setting.
+
+Sanity-check any of this in a private/incognito window — one second, no API archaeology.
 
 ### Analytics: script present, collection off
 
@@ -107,8 +106,9 @@ either deployment. Enabling it is a dashboard action with no API/MCP equivalent:
 **Vercel → Project → Analytics → Enable**. It covers production and preview together;
 there is no per-deployment switch.
 
-Note the interaction: while SSO protection is on, the only traffic that could be recorded
-is from logged-in team members, so analytics stays near-empty until protection comes off.
+Note the interaction with protection: once enabled, production would record real public
+traffic, but the previews would only ever record logged-in team members — so preview
+numbers will look near-empty by design, and that is not a bug.
 
 ---
 
