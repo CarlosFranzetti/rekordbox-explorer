@@ -57,7 +57,7 @@ npm test
 - **Themes** are CSS variables in `src/index.css`: `dark`, `midnight`, `light` (sepia),
   `arctic`. Primary is `hsl(200 100% 50%)` = `#00AAFF`.
 - **Icons** in `public/` are the hard-drive-in-a-circle mark, all local. The originals
-  were hotlinked from Lovable's upload bucket — don't reintroduce remote icon URLs.
+  were hotlinked from a third-party bucket — never reintroduce a remote icon URL.
 - **Binary parser** reads Pioneer's `.pdb` as an `ArrayBuffer`. When touching it, prefer
   *degrade gracefully* over *throw* — over-strict validation is a prime suspect for the
   rollback. See `database.md` §1 and `memorystate.md` §2.

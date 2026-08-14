@@ -66,12 +66,13 @@ Nothing re-lands until these are done.
 | Web Worker for parsing (large libraries block the main thread) | `for-later` |
 | **Mobile layout is broken on `main`** — `LibraryView` renders `ResizablePanelGroup` unconditionally with a mouse-only 1px drag handle. `for-later` fixed it with a `Sheet` drawer below 768px. Safari/iOS is the documented fallback audience, so this is user-facing today. | backport to `main` |
 | Accessibility fixes (currently only on `for-later`) | consider backporting to `main` |
-| Scaffold bloat on `main`: delete `NavLink.tsx`, ~20 unreferenced shadcn components, 24 unused deps (incl. `@tanstack/react-query` with zero `useQuery` calls); lazy-load `jspdf` (~400 KB eager). `for-later` already did all of it. | `main` |
+| **Lazy-load `jspdf`** — still an eager top-level import, ~400 KB in the main chunk for a feature most sessions never use. `for-later` already uses a dynamic `import('jspdf')`. | `main` |
+| ~~Scaffold bloat on `main`: 42 dead modules, 35 unused packages, the scaffold's component-tagger plugin~~ — done 2026-08-14 | `main` |
 | Correct the Rescue-tab promise in `recovery-note.ts:115` — the on-drive note describes a drive-scan feature the tab does not implement | `for-later` |
 | Dead `rating > 255` check on a `getUint8` — impossible condition posing as validation | `main` |
 | ~~`tsconfig.*.tsbuildinfo` still tracked~~ — done 2026-08-14 | `main` |
 | ~~`console.log` per album row in the parser~~ — done 2026-08-14 | `main` |
-| ~~`package.json` still carried the Lovable scaffold's name/version, no `license`/`repository`~~ — done 2026-08-14 | `main` |
+| ~~`package.json` still carried the original scaffold's name/version, no `license`/`repository`~~ — done 2026-08-14 | `main` |
 
 ## P3 — Read everything → `for-later`
 
