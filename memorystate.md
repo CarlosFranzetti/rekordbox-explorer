@@ -37,6 +37,66 @@ you must click **Promote to Production** on the deployment, or run
 
 ---
 
+## 1b. Deployment topology
+
+Verified 2026-08-14 against the Vercel API. Project `prj_wy7F1HyK98thD0ggXxb8JaHMAkWV`,
+team `team_2sVeVCDGjXW2eMc1O6Qr78l5`.
+
+| Target | Branch | URL | State |
+|---|---|---|---|
+| **Production** | `main` | `rekordbox-explorer.vercel.app` | ⚠️ **pinned to the pre-rollback build** |
+| **Preview** | `for-later` | `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` | ✅ auto-builds, `READY` |
+
+Three git branches exist on the remote:
+
+| Branch | Role |
+|---|---|
+| `main` | Stable viewer. Deploys to production (when promoted). |
+| `for-later` | Parked editor release. Auto-deploys to the branch preview alias above. |
+| `claude/rekordbox-playlist-export-7wndye` | Stale working branch, superseded by the two above. Safe to delete. |
+
+**`for-later` needed no configuration to get a preview URL.** Vercel builds a preview for
+every pushed branch by default, and gives each branch a stable alias of the form
+`<project>-git-<branch>-<owner>.vercel.app` that always points at that branch's newest
+build. Push to `for-later` and the preview updates itself.
+
+### Neither URL is publicly readable
+
+The project has **Vercel Deployment Protection** on:
+
+```
+ssoProtection:      { enabled: true, deploymentType: "all_except_custom_domains" }
+passwordProtection: disabled
+custom domains:     none — only the three *.vercel.app hostnames
+```
+
+`all_except_custom_domains` protects every `.vercel.app` hostname. Because the project has
+no custom domain, that is *all* of them — **production and preview alike**. Fetching either
+one while logged out returns `302 → https://vercel.com/sso-api?...` plus
+`x-robots-tag: noindex`. Only members of the Vercel team can see the app.
+
+To make production public: **Vercel → Project → Settings → Deployment Protection → Vercel
+Authentication → Off** (or attach a custom domain, which is exempt under the current
+setting). Leaving it on for previews and off for production is a supported combination —
+choose *Standard Protection* rather than *All Deployments*.
+
+### Analytics: script present, collection off
+
+`<Analytics />` from `@vercel/analytics/react` is mounted in `src/App.tsx` on **both**
+branches, and `vitals.vercel-insights.com` is allowed in the `connect-src` CSP in
+`vercel.json`. So the beacon fires from both deployments.
+
+But **Web Analytics is not enabled on the Vercel project** — the API returns
+`404 Web Analytics not found`. Beacons are sent and dropped; no data is being retained for
+either deployment. Enabling it is a dashboard action with no API/MCP equivalent:
+**Vercel → Project → Analytics → Enable**. It covers production and preview together;
+there is no per-deployment switch.
+
+Note the interaction: while SSO protection is on, the only traffic that could be recorded
+is from logged-in team members, so analytics stays near-empty until protection comes off.
+
+---
+
 ## 2. The rollback: ranked suspects
 
 Nobody captured the error, so this is analysis, not diagnosis. Ranked by how well each
@@ -78,12 +138,73 @@ Ruled out unless evidence says otherwise.
 **6. `crypto.subtle` unavailable.** Only reachable on write/backup paths, not on load.
 Would not break plain browsing. Low.
 
+### 2026-08-14 review round — three suspects eliminated
+
+A second independent review traced every call path and **narrowed the list above**. The
+headline correction:
+
+> **The page-alignment throw is caught.** `useRekordbox.ts` wraps every parse entry point
+> — `selectFolder`, `reload`, `handleFileInput`, `performFullScan` — in `try/catch` and
+> sets `status: 'error'`. So suspect #2 renders a visible error card, **not** a blank
+> page. It is still a real regression (the app refuses files the old parser opened), but
+> it cannot by itself produce the catastrophic symptom.
+
+Also established, with call-path evidence:
+
+- **Suspect #4 (IndexedDB) is ruled out as a cause of "library won't display."**
+  `setStatus({ type: 'valid', ... })` runs *before* `rememberDevice()` is called, and the
+  call is `void`-ed with a `.catch`. Success, rejection, or an indefinite hang cannot
+  block or crash library display. The `dbPromise`-caches-a-rejection bug is real but
+  silent and session-scoped. `onblocked` is unreachable until `DB_VERSION` bumps past 1.
+- **Suspect #5 (localStorage) confirmed ruled out.** Object spread never overwrites a
+  missing key with `undefined`; every new settings field keeps its default.
+- **Suspect #6 (`crypto.subtle`) confirmed ruled out** — write paths only.
+- **Suspect #3 got more interesting, not less.** `walkTablePages` returning on a type
+  mismatch ends the *whole generator*, discarding every remaining page in the chain. The
+  old parser skipped the bad page and kept walking. On a well-used drive with rekordbox's
+  page-reuse mechanism, this yields a **silent partial library** — no error at all, just
+  missing tracks. That is a harder symptom to describe than a crash, which fits "the
+  specific symptom was never captured" better than anything else on the list.
+- **No uncaught render-time throw was found anywhere in the codebase.** The error boundary
+  is still the correct first fix, but as insurance against future bugs rather than as the
+  explanation for this one.
+
+Revised bet: **#2 or #3**, with genuinely low confidence in either. The honest conclusion
+is unchanged and now doubly evidenced — this cannot be resolved without the original
+console error or a real `export.pdb`.
+
+### New defects found this round
+
+- **`recovery-note.ts:115` lies about the Rescue tab.** The on-drive
+  `WHATTODOIFTHISWENTTOSHIT.txt` promises Rescue "scans the whole drive for any
+  recoverable database and offers to put it back." The actual tab
+  (`BackupsDialog.tsx:411`) is static advice text with no scan action. This is the one
+  document a DJ reads mid-incident with no internet. Fix the text or build the feature.
+- **`console.log` per album on `main`** (`rekordbox-parser.ts:647`) — violated this repo's
+  own rule, fired once per album row on every load. **Fixed 2026-08-14.**
+- **Dead `rating > 255` check** on a `getUint8` — impossible condition dressed as a
+  validation. Harmless, misleading.
+- **`main` still carries the Lovable scaffold's bloat**: `NavLink.tsx` (zero imports),
+  ~20 unreferenced shadcn components, 24 unused dependencies (including
+  `@tanstack/react-query` with zero `useQuery` calls), and an eager top-level `jspdf`
+  import (~400 KB in the main chunk). `for-later` already trimmed all of it.
+
+### Security audit — clean
+
+A separate audit of `for-later` covering untrusted binary parsing and write-path safety
+found **no exploitable vulnerabilities**. Every `DataView` read is bounds-checked; every
+chain walk has a `visited` set and a page cap; allocation is capped at four levels;
+CSV/M3U8/XML/filename/print-HTML output is escaped with tests proving it; all six write
+invariants are enforced with a hard gate and automatic rollback; no secrets; CSP has no
+`script-src 'unsafe-inline'`; privacy claims verified (nothing but Vercel page views
+leaves the browser).
+
 ### What to do about it
 
 Before re-landing `for-later`: add an error boundary, relax the page-alignment check to a
-warning, and **test against a real `export.pdb`** — the one gap no amount of synthetic
-fixture work closes. If the user can supply the actual console error, most of this list
-collapses to one item.
+warning, make `walkTablePages` skip-and-continue instead of truncating, and **test against
+a real `export.pdb`** — the one gap no amount of synthetic fixture work closes. If the
+user can supply the actual console error, most of this list collapses to one item.
 
 ---
 
