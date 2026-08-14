@@ -61,7 +61,7 @@ Nothing re-lands until these are done.
 | Upload `og-image.png` as GitHub social preview | *repo setting* |
 | **Promote the pinned Vercel deployment** — production still serves the pre-rollback build | *Vercel setting* |
 | **Enable Web Analytics** — `<Analytics />` is mounted on both branches but the project has it off, so every beacon is dropped | *Vercel setting* |
-| **Decide on Deployment Protection** — SSO currently gates *both* production and preview; nothing is publicly reachable | *Vercel setting* |
+| **Check Deployment Protection in an incognito window** — SSO definitely gates the preview; production's status is ambiguous (setting says gated, observed response says open). See `memorystate.md` §1b. | *Vercel setting* |
 | Bundle: `main`'s main chunk is 863 KB (280 KB gzipped), `for-later`'s is ~560 KB — code-split the dialogs | both |
 | Web Worker for parsing (large libraries block the main thread) | `for-later` |
 | **Mobile layout is broken on `main`** — `LibraryView` renders `ResizablePanelGroup` unconditionally with a mouse-only 1px drag handle. `for-later` fixed it with a `Sheet` drawer below 768px. Safari/iOS is the documented fallback audience, so this is user-facing today. | backport to `main` |

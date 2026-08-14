@@ -60,25 +60,40 @@ every pushed branch by default, and gives each branch a stable alias of the form
 `<project>-git-<branch>-<owner>.vercel.app` that always points at that branch's newest
 build. Push to `for-later` and the preview updates itself.
 
-### Neither URL is publicly readable
+### Public access: preview is gated, production is probably not — verify in incognito
 
 The project has **Vercel Deployment Protection** on:
 
 ```
 ssoProtection:      { enabled: true, deploymentType: "all_except_custom_domains" }
 passwordProtection: disabled
+trustedIps:         disabled
 custom domains:     none — only the three *.vercel.app hostnames
 ```
 
-`all_except_custom_domains` protects every `.vercel.app` hostname. Because the project has
-no custom domain, that is *all* of them — **production and preview alike**. Fetching either
-one while logged out returns `302 → https://vercel.com/sso-api?...` plus
-`x-robots-tag: noindex`. Only members of the Vercel team can see the app.
+**The preview is definitely gated.** Fetching the `for-later` alias returns
+`302 → https://vercel.com/sso-api?...` with `x-robots-tag: noindex`. A stranger cannot
+open it; it will never be indexed.
 
-To make production public: **Vercel → Project → Settings → Deployment Protection → Vercel
-Authentication → Off** (or attach a custom domain, which is exempt under the current
-setting). Leaving it on for previews and off for production is a supported combination —
-choose *Standard Protection* rather than *All Deployments*.
+**Production's status is unresolved and should be checked by hand.** The two available
+signals disagree:
+
+- The setting name reads as "protect everything that is not a custom domain," and this
+  project has no custom domain — which would imply production is gated too.
+- But production actually served `200` with full HTML and `x-vercel-cache: HIT`, no auth
+  challenge, while the *same* client got the `302` on preview. A protected route 302s
+  before it serves cache.
+
+No unauthenticated fetch was possible from the build container (the egress proxy denies
+these hosts), so this could not be settled from here. **Open
+`rekordbox-explorer.vercel.app` in a private/incognito window.** That answers it in one
+second and beats any amount of further API archaeology.
+
+If it *is* gated and you want it public: **Vercel → Project → Settings → Deployment
+Protection → Vercel Authentication**. Switching to *Standard Protection* keeps previews
+private while leaving the production domain open — the usual arrangement for a public app
+with private branch builds. Attaching a custom domain also exempts it under the current
+setting.
 
 ### Analytics: script present, collection off
 
