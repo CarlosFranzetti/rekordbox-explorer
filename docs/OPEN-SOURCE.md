@@ -79,7 +79,9 @@ Still open:
 
 ## What being public does *not* mean
 
-The GitHub repo is public. Whether the **deployed app** is reachable by a stranger is a
-completely separate switch — Vercel Deployment Protection, not GitHub visibility. The
-`for-later` preview is definitely gated behind Vercel SSO; production's status needs a
-thirty-second check in an incognito window. See `memorystate.md` §1b.
+The GitHub repo being public and the deployed app being reachable are two independent
+switches — GitHub visibility and Vercel Deployment Protection. Here, production is open to
+anyone while every branch preview is SSO-gated and `noindex`. See `memorystate.md` §1b.
+
+Conversely, making the *repo* public is what open source means; making the *app* public is
+just hosting. You can have either without the other.
