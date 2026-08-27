@@ -1,7 +1,7 @@
-import { HardDrive, Usb, AlertCircle, Loader2, FileUp, CheckCircle, Info } from 'lucide-react';
+import { HardDrive, Usb, AlertCircle, Loader2, FileUp, CheckCircle, XCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { USBStatus, LibraryPresence } from '@/types/rekordbox';
+import type { USBStatus, DriveReport } from '@/types/rekordbox';
 import { isFileSystemAccessSupported } from '@/hooks/useRekordbox';
 import { DonateSection } from '@/components/DonateSection';
 
@@ -15,44 +15,91 @@ interface LandingScreenProps {
   onFileInput?: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-function CompatibilityInfo({ libraries }: { libraries: LibraryPresence }) {
-  if (!libraries) return null;
+function PlayerRow({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      {ok ? (
+        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+      ) : (
+        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+      )}
+      <div className="min-w-0">
+        <p className="font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Will this stick work in the booth?" — the question people actually have.
+ *
+ * Leads with the answer per player generation rather than with which files
+ * exist, because "you have export.pdb but no exportLibrary.db" means nothing
+ * to most people and "this will not show up on older CDJs" means everything.
+ */
+export function CompatibilityInfo({ drive }: { drive: DriveReport }) {
+  const { compatibility, check, playlistComparison } = drive;
 
   return (
-    <div className="mt-4 rounded-lg border bg-card p-4">
-      <h3 className="mb-3 font-medium flex items-center gap-2">
+    <div className="mt-4 space-y-3 rounded-lg border bg-card p-4">
+      <h3 className="flex items-center gap-2 font-medium">
         <Info className="h-4 w-4" />
-        USB Compatibility
+        Player compatibility
       </h3>
-      
-      <div className="space-y-3 text-sm">
-        <div className="flex items-start gap-2">
-          {libraries.hasLegacy ? (
-            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-          ) : (
-            <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
-          )}
-          <div>
-            <p className="font-medium">Legacy Library (export.pdb)</p>
-            <p className="text-muted-foreground text-xs">
-              Required for CDJ-2000NXS2, XDJ-1000MK2, XDJ-RX2, and older.
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-start gap-2">
-          {libraries.hasPlus ? (
-            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-          ) : (
-            <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
-          )}
-          <div>
-            <p className="font-medium">Device Library Plus</p>
-            <p className="text-muted-foreground text-xs">
-              Optimized for CDJ-3000, Opus-Quad, Omni-Duo.
-            </p>
-          </div>
+      <p className="text-sm text-foreground">{compatibility.headline}</p>
+
+      <div className="space-y-3 text-sm">
+        <PlayerRow
+          ok={compatibility.olderPlayers === 'yes'}
+          label="Older players"
+          detail="CDJ-2000NXS2, CDJ-3000, XDJ-1000MK2, XDJ-RX2, XDJ-XZ"
+        />
+        <PlayerRow
+          ok={compatibility.newerPlayers === 'yes'}
+          label="Newer players"
+          detail="CDJ-3000X, XDJ-AZ, OPUS-QUAD, OMNIS-DUO, CDJ-3000 fw 3.15+"
+        />
+      </div>
+
+      {compatibility.warnings.map((w) => (
+        <div key={w} className="flex items-start gap-2 rounded border border-warning/30 bg-warning/10 p-2">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <p className="text-xs text-muted-foreground">{w}</p>
         </div>
+      ))}
+
+      {playlistComparison && (
+        <div
+          className={`rounded border p-2 ${
+            playlistComparison.equivalent
+              ? 'border-green-500/30 bg-green-500/10'
+              : 'border-warning/30 bg-warning/10'
+          }`}
+        >
+          <p className="text-xs text-muted-foreground">{playlistComparison.summary}</p>
+          {!playlistComparison.equivalent && (
+            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+              {playlistComparison.onlyInLegacy.map((n) => (
+                <li key={`l-${n}`}>· “{n}” — older players only</li>
+              ))}
+              {playlistComparison.onlyInOneLibrary.map((n) => (
+                <li key={`o-${n}`}>· “{n}” — newer players only</li>
+              ))}
+              {playlistComparison.differingCounts.map((d) => (
+                <li key={`d-${d.name}`}>
+                  · “{d.name}” — {d.legacyCount} tracks on older, {d.oneLibraryCount} on newer
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <div className="space-y-0.5 border-t pt-2 text-xs text-muted-foreground">
+        {check.legacy && <p>Found {check.legacy.path}</p>}
+        {check.oneLibrary && <p>Found {check.oneLibrary.path}</p>}
       </div>
     </div>
   );
@@ -139,7 +186,7 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
                 </div>
               </div>
               
-              {status.libraries && <CompatibilityInfo libraries={status.libraries} />}
+              {status.drive && <CompatibilityInfo drive={status.drive} />}
 
               <div className="flex gap-2">
                 <Button 

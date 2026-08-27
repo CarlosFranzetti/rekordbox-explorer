@@ -32,6 +32,7 @@ const Index = () => {
       <LibraryView
         database={status.database}
         libraries={status.libraries}
+        drive={status.drive}
         selectedPlaylist={selectedPlaylist}
         onSelectPlaylist={setSelectedPlaylist}
         searchQuery={searchQuery}

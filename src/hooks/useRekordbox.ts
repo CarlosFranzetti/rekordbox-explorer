@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { USBStatus, FileEntry, Playlist, Track, SortColumn, SortDirection } from '@/types/rekordbox';
+import type { USBStatus, FileEntry, Playlist, Track, SortColumn, SortDirection, DriveReport } from '@/types/rekordbox';
 import { 
   findRekordboxDatabase, 
   fullScanForDatabase, 
@@ -9,6 +9,8 @@ import {
 } from '@/lib/rekordbox-parser';
 import { useToast } from '@/hooks/use-toast';
 import { identifyFile } from '@/lib/file-sniff';
+import { checkDrive, describeCompatibility, comparePlaylists } from '@/lib/library-check';
+import { readOneLibraryFromDrive } from '@/lib/onelibrary/load';
 
 // Check if File System Access API is supported
 export function isFileSystemAccessSupported(): boolean {
@@ -100,7 +102,33 @@ export function useRekordbox() {
             }
           }
 
-          setStatus({ type: 'valid', database: mergedDb, libraries: result.libraries || { hasLegacy: true, hasPlus: false } });
+          // Which decks will this stick actually work in? Cheap — reads sizes
+          // and names only — so it runs on every load, not on request.
+          const check = await checkDrive(handle);
+          const drive: DriveReport = { check, compatibility: describeCompatibility(check) };
+
+          // If the drive carries both libraries, they can disagree, and the
+          // player picks based on its own age. Compare them so the user finds
+          // out here rather than in a booth.
+          if (check.legacy && check.oneLibrary) {
+            try {
+              const oneDb = await readOneLibraryFromDrive(handle, check.oneLibrary.path);
+              if (oneDb) drive.playlistComparison = comparePlaylists(mergedDb, oneDb);
+            } catch {
+              // An unreadable OneLibrary must not stop the legacy library from
+              // loading — the compatibility report already flags its presence.
+            }
+          }
+
+          setStatus({
+            type: 'valid',
+            database: mergedDb,
+            libraries: {
+              hasLegacy: check.legacy !== null,
+              hasPlus: check.oneLibrary !== null,
+            },
+            drive,
+          });
 
           // Show success toast
           toast({
@@ -125,17 +153,51 @@ export function useRekordbox() {
             message: `Failed to parse Rekordbox database: ${errorMessage}`,
           });
         }
-      } else if (result.partialMatch) {
-        setStatus({
-          type: 'partial',
-          message: result.message || 'Partial Rekordbox structure found.',
-          libraries: result.libraries
-        });
       } else {
-        setStatus({
-          type: 'invalid',
-          message: result.message || 'Non-Rekordbox USB detected.',
-        });
+        // No legacy library. That is not automatically a dead end any more — a
+        // OneLibrary-only drive is a normal modern export, and the old code
+        // called it "partial" because it only looked for a DeviceLibraryPlus
+        // folder that rekordbox never actually writes.
+        const check = await checkDrive(handle);
+        const drive: DriveReport = { check, compatibility: describeCompatibility(check) };
+
+        if (check.oneLibrary) {
+          try {
+            const oneDb = await readOneLibraryFromDrive(handle, check.oneLibrary.path);
+            if (oneDb) {
+              setStatus({
+                type: 'valid',
+                database: oneDb,
+                libraries: { hasLegacy: false, hasPlus: true },
+                drive,
+              });
+              toast({
+                title: 'OneLibrary loaded',
+                description: `${oneDb.tracks.length} tracks. This drive will not show up on older CDJs.`,
+              });
+              return;
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            setStatus({ type: 'error', message });
+            toast({ title: 'Could not read OneLibrary', description: message, variant: 'destructive' });
+            return;
+          }
+        }
+
+        if (result.partialMatch || check.hasPioneerFolder) {
+          setStatus({
+            type: 'partial',
+            message: drive.compatibility.headline,
+            libraries: { hasLegacy: false, hasPlus: check.oneLibrary !== null },
+            drive,
+          });
+        } else {
+          setStatus({
+            type: 'invalid',
+            message: result.message || 'Non-Rekordbox USB detected.',
+          });
+        }
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {

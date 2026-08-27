@@ -8,11 +8,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/useSettings';
 import { exportTracksToPdf } from '@/lib/pdf-export';
-import type { RekordboxDatabase, Playlist, Track, ViewMode, SortColumn, SortDirection, FileEntry, LibraryPresence } from '@/types/rekordbox';
+import { DriveCompatibilityBanner } from './DriveCompatibilityBanner';
+import type { RekordboxDatabase, Playlist, Track, ViewMode, SortColumn, SortDirection, FileEntry, LibraryPresence, DriveReport } from '@/types/rekordbox';
 
 interface LibraryViewProps {
   database: RekordboxDatabase;
   libraries?: LibraryPresence;
+  drive?: DriveReport;
   selectedPlaylist: Playlist | null;
   onSelectPlaylist: (playlist: Playlist | null) => void;
   searchQuery: string;
@@ -32,6 +34,7 @@ interface LibraryViewProps {
 export function LibraryView({
   database,
   libraries,
+  drive,
   selectedPlaylist,
   onSelectPlaylist,
   searchQuery,
@@ -92,6 +95,7 @@ export function LibraryView({
 
         <ResizablePanel defaultSize={76} minSize={60} className="min-w-0">
           <div className="flex h-full flex-col overflow-hidden">
+            {drive && <DriveCompatibilityBanner drive={drive} />}
             <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
               <div className="flex min-w-0 items-center gap-4">
                 <h1 className="truncate text-lg font-semibold text-foreground">

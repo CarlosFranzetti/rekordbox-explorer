@@ -102,6 +102,27 @@ Nothing re-lands until these are done.
 - [ ] **Backup vault on disk**, not just per-drive.
 - [ ] PWA / offline install (manifest already shipped on `main`).
 
+## P7a — Drive compatibility check → **shipped on both branches**
+
+"Will this stick work in the booth?" — answered before you leave the house.
+
+- [x] Detect the legacy library and OneLibrary, checking `PIONEER/rekordbox/exportLibrary.db`,
+      `PIONEER/rekordbox/library/*.db` and `PIONEER/DeviceLibraryPlus/`. Detection is
+      permissive on purpose: a false negative tells a DJ their stick is legacy-only when
+      it is not, which is the exact failure this prevents.
+- [x] Report support per player generation, not per file, with a fix for each problem
+- [x] Compare playlists across both libraries when a drive carries both — a drive whose
+      two libraries disagree shows different playlists in different booths
+- [x] Warn on an unflushed `-wal`
+- [x] 19 tests
+- [ ] Compare **track membership**, not just playlist names and counts. The two databases
+      use different id spaces, so this needs matching on file path.
+- [ ] Check the audio files referenced actually exist on the drive
+
+**Fixed a real bug doing this:** detection previously only looked for a
+`PIONEER/DeviceLibraryPlus` folder, which rekordbox never writes. `hasPlus` was therefore
+false on every real drive, and OneLibrary-only sticks were reported as "partial".
+
 ## P7 — OneLibrary → `for-later`
 
 The format AlphaTheta shipped in October 2025 for CDJ-3000X, XDJ-AZ, OPUS-QUAD,
