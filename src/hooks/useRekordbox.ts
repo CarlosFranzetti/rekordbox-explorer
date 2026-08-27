@@ -16,6 +16,7 @@ import {
   parseRekordboxDatabaseFromFile,
 } from '@/lib/rekordbox-parser';
 import { useToast } from '@/hooks/use-toast';
+import { identifyFile } from '@/lib/file-sniff';
 import { MOBILE_BREAKPOINT } from '@/hooks/use-mobile';
 import { rememberDevice } from '@/lib/device-registry';
 
@@ -207,6 +208,17 @@ export function useRekordbox() {
       setStatus({ type: 'loading' });
 
       try {
+        // Identify the file before parsing it. On iOS there is no folder picker,
+        // so people reach for their music and the raw parser error for an audio
+        // file is unreadable — see src/lib/file-sniff.ts.
+        const head = new Uint8Array(await primary.slice(0, 256).arrayBuffer());
+        const id = identifyFile(head, primary.name);
+        if (!id.parseable) {
+          setStatus({ type: 'error', message: id.message });
+          toast({ title: 'Wrong file', description: id.message, variant: 'destructive' });
+          return;
+        }
+
         const base = await parseRekordboxDatabaseFromFile(primary);
         let database = base;
         if (!isSmallScreen() && exportFile && exportExtFile) {

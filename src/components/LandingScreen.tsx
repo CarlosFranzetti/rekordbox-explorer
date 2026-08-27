@@ -68,6 +68,9 @@ export function LandingScreen({ status, onSelectFolder, onFullScan, onReset, onS
         <input
           ref={fileInputRef}
           type="file"
+          // Steers the iOS Files picker toward the database. A hint only — iOS
+          // still allows anything — so the load path sniffs the bytes as well.
+          accept=".pdb,application/octet-stream"
           onChange={onFileInput}
           className="hidden"
         />

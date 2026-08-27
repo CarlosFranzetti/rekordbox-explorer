@@ -78,10 +78,41 @@ Six invariants, each enforced by a test. Do not break them:
 
 Only playlist tables (types 7 and 8) are ever written.
 
+### Invariant 1 does not apply to OneLibrary
+
+`src/lib/onelibrary/` writes SQLite, where appending is not possible — changing one value
+can change its serial type, grow the record, and split the b-tree. Those writes **rebuild
+the whole file**. Invariants 2–6 still hold and matter more. The compensating control is
+that `applyPlaylistChanges` decrypts and re-reads its own output before returning, so a
+database that would not open never reaches a drive.
+
+Do not "fix" this by making the PDB writer rebuild too, and do not claim OneLibrary writes
+are append-only.
+
+## OneLibrary (`src/lib/onelibrary/`)
+
+SQLCipher 4 via **WebCrypto only** — no WASM, no native module. Page 4096, reserve 80
+(16-byte IV + 64-byte HMAC-SHA512), PBKDF2-HMAC-SHA512 at 256,000 iterations. The
+passphrase is a **string**, never a raw hex key.
+
+- `sqlcipher.js`, `sqlite.js`, `sqlite-write.js` are **vendored verbatim** from
+  [v1vendi/onelibrary](https://github.com/v1vendi/onelibrary) (MIT). They are plain `.js`
+  with types in `index.d.ts` on purpose, so upstream fixes apply as a clean diff. Do not
+  reformat them; change upstream and re-vendor. See `docs/THIRD-PARTY.md`.
+- Rows carry `__rowid` pinned from the `INTEGER PRIMARY KEY`. Drop that and tables with
+  gaps in their ids get silently renumbered — this bit once already.
+- Cues are **not** in the `cue` table; rekordbox puts them in ANLZ. Filling `cue` produces
+  a device with no cues on it.
+
 ## Writing for users
 
 Error messages are read by a DJ ten minutes before doors. Say what happened, what state
 the drive is in, and what to do. Never make someone guess whether their library survived.
+
+A message that echoes a raw parsed value is not an error message. `Invalid number of
+tables: 1179011393` was a real one: the user had selected an AIFF file, and `1179011393`
+is the ASCII bytes `AIFF` sitting where the table count belongs. `src/lib/file-sniff.ts`
+exists so the app says what the file actually is instead.
 
 ## Donation Links
 

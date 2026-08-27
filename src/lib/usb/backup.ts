@@ -47,7 +47,15 @@ export const VAULTS = [
 
 export type VaultId = (typeof VAULTS)[number]['id'];
 
-export const DEFAULT_BACKUP_LIMIT = 5;
+/**
+ * How many backup sets are kept per drive before the oldest is pruned.
+ *
+ * Every set is stored twice — once in each vault — so ten sets is twenty copies
+ * of `export.pdb` on the drive. A typical library is a few MB, so that is
+ * comfortably affordable; a very large one on a nearly-full drive is the case
+ * to watch, which is why the limit stays adjustable.
+ */
+export const DEFAULT_BACKUP_LIMIT = 10;
 export const MIN_BACKUP_LIMIT = 3;
 export const MAX_BACKUP_LIMIT = 20;
 
