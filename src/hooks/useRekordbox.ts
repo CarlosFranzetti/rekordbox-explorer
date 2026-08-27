@@ -8,6 +8,7 @@ import {
   listDirectory 
 } from '@/lib/rekordbox-parser';
 import { useToast } from '@/hooks/use-toast';
+import { identifyFile } from '@/lib/file-sniff';
 
 // Check if File System Access API is supported
 export function isFileSystemAccessSupported(): boolean {
@@ -200,6 +201,17 @@ export function useRekordbox() {
     setStatus({ type: 'loading' });
 
     try {
+      // Check what this actually is before parsing. Picking a song instead of
+      // the database is the most common mistake on iOS, where there is no
+      // folder picker, and the raw parser error for it is unreadable.
+      const head = new Uint8Array(await primaryFile.slice(0, 256).arrayBuffer());
+      const id = identifyFile(head, primaryFile.name);
+      if (!id.parseable) {
+        setStatus({ type: 'error', message: id.message });
+        toast({ title: 'Wrong file', description: id.message, variant: 'destructive' });
+        return;
+      }
+
       const baseDb = await parseRekordboxDatabaseFromFile(primaryFile);
 
       // Desktop/large screens: if both are available, merge exportExt into export (for BPM/Genre completeness).
