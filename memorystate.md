@@ -210,6 +210,32 @@ See `docs/THIRD-PARTY.md`.
 
 ---
 
+## 1e. Mobile layout: one layout, not a phone variant
+
+Settled 2026-08-27 by the person who actually uses this on a phone, and it
+contradicts both the conventional wisdom and an earlier code review.
+
+`for-later` had "fixed" mobile by putting the playlist tree behind a hamburger
+below 768px and cutting the track table to three flexible-width columns. On a
+real phone that renders as **a single stretched Title column with no playlists
+visible** — the flexible widths collapse whenever artist/album are empty. The
+2026-08-14 review had called `main`'s unconditional `ResizablePanelGroup` the
+bug and this drawer the fix. That was backwards.
+
+**The rule now: a phone gets the same layout as a desktop.** Playlists beside the
+tracks, the full column set, horizontal scroll to reach the rest. The panel is
+resizable, so anyone who wants a full-width table can drag it there.
+
+Reasoning worth keeping: the playlist tree *is* the app — hiding it costs a tap
+on every navigation — and BPM is exactly what someone checks on their phone. The
+generic mobile pattern optimises for content-first reading, which this is not.
+
+Pinned by `src/components/LibraryView.mobile.test.tsx`, which asserts at 390px
+that playlists render, no hamburger exists, and the column count matches desktop.
+Do not "optimise mobile" past those tests without asking.
+
+---
+
 ## 2. The rollback: ranked suspects
 
 Nobody captured the error, so this is analysis, not diagnosis. Ranked by how well each
