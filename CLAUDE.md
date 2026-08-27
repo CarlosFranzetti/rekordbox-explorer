@@ -78,6 +78,24 @@ Six invariants, each enforced by a test. Do not break them:
 
 Only playlist tables (types 7 and 8) are ever written.
 
+## Recovery (`src/lib/recovery/`)
+
+**Do not repair a broken library. Find an intact one.** A stick carries several
+databases written at different times; the one that was open when the drive was
+pulled loses its unflushed pages, the others are fine. That is a search problem.
+
+- **Unwritten is not corrupt.** A file that stops on a page boundary, or is full
+  of all-zero pages, was never finished being written. There is nothing to
+  repair, and saying "corrupt" sends a DJ hunting for a tool that cannot exist.
+  `assess.ts` draws that line; keep it drawn.
+- Read damaged SQLite with the **forgiving b-tree walker**, never a real SQLite
+  engine — `sqlite3` rejects a truncated file outright, the walker reads what
+  survived. That is what made the original recovery possible.
+- Assess OneLibrary **after** decrypting; encryption hides blank pages.
+- Recovery is **read-only**. It never writes to the drive.
+- Output is **rekordbox XML only**. Never synthesise an `export.pdb` — see
+  `xml.ts` for why, and do not "improve" this without a CDJ to test against.
+
 ## Writing for users
 
 Error messages are read by a DJ ten minutes before doors. Say what happened, what state

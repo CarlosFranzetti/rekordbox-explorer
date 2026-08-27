@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Playlist, ViewMode, LibraryPresence } from '@/types/rekordbox';
 import { SettingsPanel, type ColorScheme } from './SettingsPanel';
+import { RecoveryDialog } from './RecoveryDialog';
 import { Monitor, HelpCircle, HardDrive } from 'lucide-react';
 import {
   Popover,
@@ -21,6 +22,7 @@ interface PlaylistSidebarProps {
   onViewModeChange: (mode: ViewMode) => void;
   trackCount: number;
   onReset: () => void;
+  rootHandle?: FileSystemDirectoryHandle | null;
   colorScheme: ColorScheme;
   onColorSchemeChange: (scheme: ColorScheme) => void;
   fontSize: number;
@@ -151,6 +153,7 @@ export function PlaylistSidebar({
   onViewModeChange,
   trackCount,
   onReset,
+  rootHandle,
   colorScheme,
   onColorSchemeChange,
   fontSize,
@@ -240,6 +243,7 @@ export function PlaylistSidebar({
           hiddenColumns={hiddenColumns}
           onToggleColumn={onToggleColumn}
         />
+        <RecoveryDialog root={rootHandle ?? null} />
         <CompatibilityIndicator libraries={libraries} />
       </div>
     </div>

@@ -23,7 +23,8 @@ const Index = () => {
     handleSort,
     fileInputRef,
     handleFileInput,
-    triggerFileInput
+    triggerFileInput,
+    rootHandle
   } = useRekordbox();
 
   // Show library view when database is loaded
@@ -33,6 +34,7 @@ const Index = () => {
         database={status.database}
         libraries={status.libraries}
         drive={status.drive}
+        rootHandle={rootHandle}
         selectedPlaylist={selectedPlaylist}
         onSelectPlaylist={setSelectedPlaylist}
         searchQuery={searchQuery}

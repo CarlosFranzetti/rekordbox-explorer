@@ -15,6 +15,7 @@ interface LibraryViewProps {
   database: RekordboxDatabase;
   libraries?: LibraryPresence;
   drive?: DriveReport;
+  rootHandle?: FileSystemDirectoryHandle | null;
   selectedPlaylist: Playlist | null;
   onSelectPlaylist: (playlist: Playlist | null) => void;
   searchQuery: string;
@@ -35,6 +36,7 @@ export function LibraryView({
   database,
   libraries,
   drive,
+  rootHandle,
   selectedPlaylist,
   onSelectPlaylist,
   searchQuery,
@@ -76,6 +78,7 @@ export function LibraryView({
           <PlaylistSidebar
             playlists={database.playlists}
             libraries={libraries}
+            rootHandle={rootHandle}
             selectedPlaylist={selectedPlaylist}
             onSelectPlaylist={onSelectPlaylist}
             viewMode={viewMode}

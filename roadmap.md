@@ -145,33 +145,30 @@ browser, with no WASM and no server — see `database.md` §OneLibrary.
       says the player prefers OneLibrary; the app should say which one it is showing.
 - [ ] ANLZ writing, without which cues do not exist on a written device.
 
-## P8 — Repair a corrupted library → `for-later`
+## P8 — Recover a damaged drive → **shipped on both branches**
 
-A drive was pulled without ejecting and its database is now corrupt. The user is
-supplying that USB; **do not guess at a repair before looking at it.** What the
-image actually shows decides everything below.
+Built against a real casualty and verified against it: 52 playlists, 721 tracks
+and 1,391 entries recovered from a drive whose rekordbox databases were 93-96%
+unwritten. Full write-up in `memorystate.md` §1f.
 
-- [ ] **Capture the evidence first.** Byte-for-byte image of the whole drive
-      before anything touches it, plus `export.pdb`, `exportExt.pdb`,
-      `exportLibrary.db`, and any `-wal`/`-shm` siblings. Work only on copies.
-- [ ] **Classify the damage.** The likely candidates from an unclean eject, in
-      rough order: a truncated final page; a partially-written page whose
-      `num_rows` disagrees with its row index; a FAT allocation-table
-      inconsistency the OS may fix on its own; or — for OneLibrary — a `-wal`
-      that was never checkpointed, which is *not* corruption and just needs
-      replaying.
-- [ ] **Salvage rather than repair, first.** The parser already degrades
-      gracefully per row. A "recover what is readable and write a fresh library"
-      path is far more tractable than in-place surgery and is what a DJ actually
-      needs before doors.
-- [ ] **Check the vaults before anything else.** If this drive was ever opened
-      with backups on, `RBXPLORER_BACKUPS` or `PIONEER/rekordbox/RBXPLORER_SAFETY`
-      may hold a verified good copy, and restoring is already implemented and
-      tested. Ask this question before writing any repair code.
-- [ ] Build the Rescue tab into the thing the recovery note already claims it is
-      (see P2) — scan the drive for any recoverable database and offer to restore.
-- [ ] Turn whatever is learned into a regression fixture, so the case is covered
-      by tests rather than by memory.
+- [x] Health assessment for PDB and SQLite: header-vs-size truncation, all-zero
+      page census, and the *unwritten vs damaged* distinction that decides the advice
+- [x] Journal and `-wal` detection, including the zero-length case
+- [x] OneLibrary decrypt, then assess the decrypted image
+- [x] Engine DJ (`Engine Library/Database2/m.db`) as an alternate source
+- [x] Score every library found, rebuild from the healthiest
+- [x] rekordbox XML output — the safe restore path
+- [x] "Attempt USB recovery" in the app, read-only, never writes
+- [x] 14 tests on synthetic fixtures reproducing the real failure shape
+- [ ] **Serato and Traktor as further sources.** Same premise as Engine: another
+      library on the same stick that was not open when it died.
+- [ ] **Carve unallocated space** for a previous `export.pdb`. exFAT does not zero
+      freed blocks, so the old database often still exists. Needs raw block access,
+      which a browser cannot do — a desktop-tier feature.
+- [ ] Match tracks across sources by file path so a partial legacy library can be
+      merged with a healthy Engine one rather than one replacing the other.
+- [ ] Recover cues from `PIONEER/USBANLZ` — they survive independently of every
+      database, one file per track, and are pure gold when a library dies.
 
 ## P6 — Open-source hygiene → `main`
 
