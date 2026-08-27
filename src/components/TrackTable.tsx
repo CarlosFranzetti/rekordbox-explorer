@@ -35,13 +35,6 @@ const DESKTOP_COLUMNS: ColumnConfig[] = [
   { key: 'label', label: 'Label', defaultWidth: 150, minWidth: 100 },
 ];
 
-// Mobile/iOS: Title, Artist, Album only (no splitters, optimized for readability)
-const MOBILE_COLUMNS: ColumnConfig[] = [
-  { key: 'title', label: 'Title', defaultWidth: 160, minWidth: 100 },
-  { key: 'artist', label: 'Artist', defaultWidth: 120, minWidth: 80 },
-  { key: 'album', label: 'Album', defaultWidth: 120, minWidth: 80 },
-];
-
 function getStoredWidths(): Record<string, number> | null {
   try {
     const stored = localStorage.getItem(COLUMN_WIDTHS_KEY);
@@ -101,8 +94,10 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenCo
   );
 
   const activeColumns = useMemo(() => {
-    if (isMobile) return MOBILE_COLUMNS;
-    
+    // Deliberately not reduced on mobile. A phone shows the same columns as a
+    // desktop and scrolls sideways to reach them — a DJ checking BPM or key on
+    // their phone needs those columns to exist, and cutting the set down to
+    // three left the table looking like a single stretched Title column.
     // Filter out hidden columns (but keep mandatory ones: title, artist, album)
     const visibleColumns = DESKTOP_COLUMNS.filter(col => {
       if (['title', 'artist', 'album'].includes(col.key)) return true;
@@ -118,7 +113,7 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenCo
       if (idxB === -1) return -1;
       return idxA - idxB;
     });
-  }, [isMobile, columnOrder, hiddenColumns]);
+  }, [columnOrder, hiddenColumns]);
 
   // Persist order
   useEffect(() => {
@@ -208,19 +203,21 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenCo
     );
   }
 
-  // On mobile, use flexible widths; on desktop, use fixed widths from state
-  const totalWidth = isMobile
-    ? undefined
-    : activeColumns.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0);
+  // Fixed widths on every screen size; the container scrolls horizontally to
+  // reach the columns that do not fit.
+  const totalWidth = activeColumns.reduce(
+    (sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth),
+    0
+  );
 
   return (
     <div className="h-full overflow-auto">
       <table
-        className={`w-full caption-bottom text-sm ${isMobile ? '' : 'table-fixed'}`}
+        className="w-full caption-bottom text-sm table-fixed"
         style={totalWidth ? { minWidth: totalWidth } : undefined}
       >
         {/* colgroup ensures header and body columns share widths */}
-        {!isMobile && (
+        {(
           <colgroup>
             {activeColumns.map((c) => (
               <col key={c.key} style={{ width: columnWidths[c.key] ?? c.defaultWidth }} />
@@ -240,7 +237,7 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenCo
                 className={`relative h-10 cursor-pointer select-none border-none bg-primary text-primary-foreground hover:bg-primary/90 ${
                   draggedColumn === col.key ? 'opacity-50' : ''
                 }`}
-                style={isMobile ? undefined : { width: columnWidths[col.key] ?? col.defaultWidth }}
+                style={{ width: columnWidths[col.key] ?? col.defaultWidth }}
                 onClick={() => onSort(col.key)}
               >
                 <div className="flex items-center gap-1 pr-4">
@@ -275,7 +272,7 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenCo
               style={isMobile ? undefined : { fontSize: 'var(--table-font-size)' }}
             >
               {activeColumns.map((col) => {
-                const cellStyle = isMobile ? undefined : { width: columnWidths[col.key] ?? col.defaultWidth };
+                const cellStyle = { width: columnWidths[col.key] ?? col.defaultWidth };
                 const mobileClass = isMobile ? 'text-xs py-2 px-2' : '';
 
                 switch (col.key) {

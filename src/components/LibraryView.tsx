@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Menu, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { PlaylistSidebar } from './PlaylistSidebar';
 import { TrackTable } from './TrackTable';
 import { FileBrowser } from './FileBrowser';
@@ -9,7 +9,6 @@ import { PlaylistEditor } from './playlist/PlaylistEditor';
 import { BackupsDialog } from './backup/BackupsDialog';
 import { DevicesDialog } from './devices/DevicesDialog';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -69,7 +68,6 @@ export function LibraryView({
   onReload,
 }: LibraryViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('library');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [backupsOpen, setBackupsOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
@@ -94,23 +92,19 @@ export function LibraryView({
       selectedPlaylist={selectedPlaylist}
       onSelectPlaylist={(playlist) => {
         onSelectPlaylist(playlist);
-        setSidebarOpen(false);
       }}
       viewMode={viewMode}
       onViewModeChange={(mode) => {
         setViewMode(mode);
-        setSidebarOpen(false);
       }}
       trackCount={database.tracks.length}
       onReset={onReset}
       settings={settings}
       onOpenBackups={() => {
         setBackupsOpen(true);
-        setSidebarOpen(false);
       }}
       onOpenDevices={() => {
         setDevicesOpen(true);
-        setSidebarOpen(false);
       }}
     />
   );
@@ -119,20 +113,6 @@ export function LibraryView({
     <div className="flex h-full min-w-0 flex-col overflow-hidden">
       <header className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-3 py-2 sm:px-4 sm:py-3">
         <div className="flex items-center gap-2">
-          {isMobile && (
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" aria-label="Open library menu">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[86vw] max-w-xs p-0">
-                <SheetTitle className="sr-only">Library navigation</SheetTitle>
-                {sidebar}
-              </SheetContent>
-            </Sheet>
-          )}
-
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">
               {viewMode === 'files' ? 'File Browser' : currentPlaylistName}
@@ -205,19 +185,28 @@ export function LibraryView({
 
   return (
     <div className="h-[100dvh] bg-background">
-      {isMobile ? (
-        content
-      ) : (
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={24} minSize={16} maxSize={40} className="min-w-0">
-            {sidebar}
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={76} minSize={45} className="min-w-0">
-            {content}
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      )}
+      {/*
+        One layout everywhere: playlists visible beside the tracks, on a phone as
+        much as on a desktop. An earlier version put the sidebar behind a
+        hamburger below 768px, which is the conventional mobile pattern but the
+        wrong one here — the playlist tree *is* the app, and hiding it costs a
+        tap on every navigation. The panel is resizable, so anyone who wants the
+        table full-width can drag it there.
+      */}
+      <ResizablePanelGroup direction="horizontal" className="h-full">
+        <ResizablePanel
+          defaultSize={isMobile ? 40 : 24}
+          minSize={isMobile ? 20 : 16}
+          maxSize={isMobile ? 60 : 40}
+          className="min-w-0"
+        >
+          {sidebar}
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={isMobile ? 60 : 76} minSize={isMobile ? 40 : 45} className="min-w-0">
+          {content}
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       <PlaylistEditor
         open={editorOpen}

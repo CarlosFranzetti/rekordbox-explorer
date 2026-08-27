@@ -64,7 +64,8 @@ Nothing re-lands until these are done.
 | Deployment Protection — resolved, no action needed: production domain is public, all previews and branch aliases are SSO-gated and `noindex`. See `memorystate.md` §1b. | *Vercel setting* |
 | Bundle: `main`'s main chunk is 863 KB (280 KB gzipped), `for-later`'s is ~560 KB — code-split the dialogs | both |
 | Web Worker for parsing (large libraries block the main thread) | `for-later` |
-| **Mobile layout is broken on `main`** — `LibraryView` renders `ResizablePanelGroup` unconditionally with a mouse-only 1px drag handle. `for-later` fixed it with a `Sheet` drawer below 768px. Safari/iOS is the documented fallback audience, so this is user-facing today. | backport to `main` |
+| ~~Mobile layout is broken on `main`~~ — **not a bug.** The `Sheet` drawer on `for-later` was the regression and has been reverted: playlists and the full column set are visible on a phone, same layout as desktop. Pinned by `LibraryView.mobile.test.tsx`. | done 2026-08-27 |
+| **No musical Key column** — `Track.key` is parsed and carried but `DESKTOP_COLUMNS` never shows it. Harmonic mixing is a core reason to check a library on a phone. | both |
 | Accessibility fixes (currently only on `for-later`) | consider backporting to `main` |
 | **Lazy-load `jspdf`** — still an eager top-level import, ~400 KB in the main chunk for a feature most sessions never use. `for-later` already uses a dynamic `import('jspdf')`. | `main` |
 | ~~Scaffold bloat on `main`: 42 dead modules, 35 unused packages, the scaffold's component-tagger plugin~~ — done 2026-08-14 | `main` |
@@ -78,8 +79,7 @@ Nothing re-lands until these are done.
 
 - [ ] **ANLZ reading** (`PIONEER/USBANLZ/**/*.DAT/.EXT`) — waveform, beatgrid, hot cues,
       memory points. Read-only. Biggest single UX jump available.
-- [ ] **Device Library Plus reading** so OPUS-QUAD-only drives stop showing as unreadable.
-      Needs SQLCipher-in-WASM. Read-only, permanently. See `database.md`.
+- [x] ~~**Device Library Plus reading**~~ — done, and it needed no WASM. Moved to P7.
 - [ ] **Artwork** from the `artwork` table (page type 13).
 - [ ] **History playlists** (types 11/12) — what you actually played, per gig.
 - [ ] **MyTag** from `exportExt.pdb` (types 3/4).
