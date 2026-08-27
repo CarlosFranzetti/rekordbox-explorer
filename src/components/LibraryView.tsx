@@ -102,6 +102,7 @@ export function LibraryView({
         setViewMode(mode);
       }}
       trackCount={database.tracks.length}
+      rootHandle={rootHandle}
       onReset={onReset}
       settings={settings}
       onOpenBackups={() => {

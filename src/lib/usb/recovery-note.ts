@@ -154,6 +154,16 @@ files on the drive stay where they are; rekordbox will reuse them.
          let it convert. Your playlists carry over. Both libraries can
          live on one stick, so this does not cost you the old decks.
 
+  The drive was unplugged without ejecting and nothing loads
+      -> Open the app, pick the whole drive, and use
+         "Attempt USB recovery". It reads every library on the
+         stick - rekordbox, OneLibrary and Engine DJ - and rebuilds
+         your playlists from whichever one survived. A drive rarely
+         loses all of them at once. It never writes to the drive.
+      -> If that finds nothing, STOP using the drive and image it
+         before anything else. Deleted data often still exists in
+         unallocated space, and every write risks overwriting it.
+
   Nothing works and you are on in ten minutes
       -> Use a different drive exported from rekordbox. Sort this one
          out tomorrow. The backups here are not going anywhere.

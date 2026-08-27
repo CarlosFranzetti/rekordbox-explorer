@@ -236,6 +236,86 @@ Do not "optimise mobile" past those tests without asking.
 
 ---
 
+## 1f. A real drive was recovered — what worked
+
+2026-08-27. A drive pulled without ejecting. All 52 playlists came back. The
+technique generalises, and is now shipped as **Attempt USB recovery**.
+
+### The diagnosis
+
+All three rekordbox databases stopped at **exactly 32 KB**:
+
+| File | Pages written | Declared | Present |
+|---|---|---|---|
+| `EXPORT.PDB` | 8 | 184 | 4.3% |
+| `exportExt.pdb` | 5 real | 21 | 24% |
+| `exportLibrary.db` | 9 (122 pages all-zero) | 131 | 7% |
+
+Three separate files stopping at the same round number is the signature: the OS
+flushed one write buffer per file and the drive went away. `exportLibrary.db` had
+already been *extended* to its full 131 pages — the size was right — but 122 of
+them were literally zeros.
+
+**This is the distinction that matters: the data was absent, not corrupted.** No
+repair tool can help. Saying "your file is corrupt" sends someone hunting for one
+that cannot exist.
+
+`export.pdb`'s `playlist_tree` starts at page 15 and `playlist_entries` at 17 —
+both past the 8-page cutoff, which is why the playlists were unrecoverable there.
+
+### What actually recovered it
+
+**`Engine Library/Database2/m.db`** — 616 pages of a declared 620. **99.4%
+intact**, because Engine was last written four days before the incident.
+
+Two things made it readable:
+
+1. **A forgiving b-tree walker, not a SQLite engine.** `sqlite3` refuses a
+   truncated file outright (`database disk image is malformed`); the pure-JS
+   walker reads whatever pages survived. That difference is the entire recovery.
+2. **Engine is plain, unencrypted SQLite** — no key, no WAL games.
+
+Result: 721 tracks, 52 playlists, 1,391 entries, zero orphans.
+
+**Proof it was the same library:** every Engine track carries
+`pdbImportKey = 7839`, which is exactly the `sequence` in the damaged
+`export.pdb`. Engine had imported from that very file.
+
+### Why the output is rekordbox XML, not a rebuilt export.pdb
+
+Tempting, and wrong. A from-scratch PDB means synthesising every table with
+correct DeviceSQL string offsets, and there is no way to validate the result
+short of a CDJ. "It parses in our own reader" is not "a player accepts it in a
+booth." rekordbox XML is documented and supported, and importing it makes
+rekordbox write both device databases itself, reusing the ANLZ already on the
+drive. One extra step, and correct.
+
+### Techniques now encoded in `src/lib/recovery/`
+
+- **Header-vs-size check** — PDB `next_unused_page x len_page`; SQLite header
+  page count at offset 28. Catches truncation.
+- **All-zero page census** — separates *unwritten* from *damaged*, which changes
+  the advice completely.
+- **Journal / `-wal` handling** — a **zero-length** `-journal` means the
+  transaction committed and there is nothing to roll back (that was the case
+  here). A non-empty one means a write was in flight. Neither can be replayed
+  in a browser, so we say so rather than silently reading half a transaction.
+- **OneLibrary decrypt then assess** — encryption hides blank pages entirely, so
+  the assessment must run on the *decrypted* image.
+- **Engine DJ as an alternate source** — the key insight: don't repair a broken
+  library, find an intact one.
+- **Score by playlists recovered, then tracks.** Playlists are what cannot be
+  rebuilt by re-scanning a folder of audio.
+
+### The rule worth remembering
+
+**A drive rarely loses every library at once.** They are written at different
+times by different software; whichever was open when the drive vanished loses
+its unflushed pages, and the others are untouched. Recovery is a search problem,
+not a repair problem.
+
+---
+
 ## 2. The rollback: ranked suspects
 
 Nobody captured the error, so this is analysis, not diagnosis. Ranked by how well each
@@ -360,7 +440,7 @@ user can supply the actual console error, most of this list collapses to one ite
 | **Manifest never trusted for listing** | A corrupt `manifest.json` is exactly when listing must still work | No |
 | **4-byte row alignment** | Format targeted 16-bit hardware; costs bytes, removes a risk class | Yes |
 | **Sample `page_flags` from existing pages** | Both `0x24` and `0x34` occur; mimic what rekordbox did on *this* drive | Yes |
-| ~~**Don't write Device Library Plus**~~ | Reversed 2026-08-27: the schema *is* documented now, and a WebCrypto writer exists and round-trips. The key-rotation risk stands. | Built, not shipped — see §1d |
+| **Don't write Device Library Plus** | Key known, schema not, no working precedent, AlphaTheta can rotate it | Revisit if schema is documented |
 | **Pick `mode:'read'`, upgrade on demand** | Read-only visitors should never see a write prompt | Yes |
 | **IndexedDB for the device registry** | 10 libraries × 5k tracks blows localStorage's 5 MB | Yes |
 | **Dropped `@tanstack/react-query`** | Zero `useQuery` calls existed. No network to fetch from | Yes |

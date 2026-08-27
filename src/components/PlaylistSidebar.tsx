@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { RecoveryDialog } from './RecoveryDialog';
 import {
   ChevronDown,
   ChevronRight,
@@ -33,6 +34,7 @@ interface PlaylistSidebarProps {
   settings: SettingsApi;
   onOpenBackups: () => void;
   onOpenDevices: () => void;
+  rootHandle?: FileSystemDirectoryHandle | null;
 }
 
 interface PlaylistItemProps {
@@ -165,6 +167,7 @@ export function PlaylistSidebar({
   settings,
   onOpenBackups,
   onOpenDevices,
+  rootHandle,
 }: PlaylistSidebarProps) {
   return (
     <div className="flex h-full w-full min-w-0 flex-col border-r border-sidebar-border bg-sidebar">
@@ -258,6 +261,7 @@ export function PlaylistSidebar({
 
         <div className="flex items-center gap-2 pt-1">
           <SettingsPanel settings={settings} />
+          <RecoveryDialog root={rootHandle ?? null} />
           <CompatibilityIndicator libraries={libraries} />
         </div>
       </div>
