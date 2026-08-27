@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  checkDrive,
-  describeCompatibility,
-  comparePlaylists,
-  type DriveCheck,
-} from './library-check';
+import { checkDrive, describeCompatibility, comparePlaylists } from './library-check';
 import type { RekordboxDatabase, Playlist } from '@/types/rekordbox';
 
 /* ---------- a minimal in-memory File System Access tree ---------- */
