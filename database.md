@@ -13,7 +13,7 @@ Format mechanics live in `research_playlistHelp.md`. This is the decision record
 |---|---|---|---|---|
 | **`export.pdb`** | DeviceSQL, on the USB. What CDJs read. | `PIONEER/rekordbox/export.pdb` | No | ✅ **Read + write playlists** |
 | **`exportExt.pdb`** | MyTag extension | same folder | No | ✅ Read only |
-| **`exportLibrary.db`** | Device Library Plus / OneLibrary. SQLite. | `PIONEER/DeviceLibraryPlus/` | **SQLCipher** | ❌ Neither, yet |
+| **`exportLibrary.db`** | OneLibrary (was Device Library Plus). SQLite. | `PIONEER/rekordbox/exportLibrary.db` | **SQLCipher** | ✅ **Read**; playlist writing built, not yet shipped |
 | **`master.db`** | Desktop rekordbox 6/7 collection | App Support | **SQLCipher** | ❌ Out of scope for a browser |
 
 ---
@@ -74,40 +74,76 @@ wrote.
 
 ---
 
-## 3. Device Library Plus / OneLibrary — reading
+## 3. OneLibrary — reading
 
-**For:** Without it, a drive exported for an OPUS-QUAD shows as unreadable, which is
-increasingly the default for new hardware. The SQLCipher key has been recovered and is
-public (base85 decode → XOR → zlib inflate), shared across all devices, not machine-bound.
-`pyrekordbox` and `onelibrary-connect` read it today. Reading your own data is defensible.
+**Resolved 2026-08-27: implemented, tested, and much cheaper than expected.**
 
-**Against:** SQLCipher-in-WASM is a heavy dependency. The schema is undocumented, so
-column meanings are guesswork. AlphaTheta can rotate the key in any firmware release and
-the feature dies. And shipping a decryption key for someone else's format is a step beyond
-parsing an unencrypted one — their EULA prohibits reverse engineering.
+The earlier entry here assumed SQLCipher-in-WASM was required and called it "a heavy
+dependency". That was wrong. SQLCipher 4 is AES-256-CBC plus PBKDF2-HMAC-SHA512 plus
+HMAC-SHA512 — **every primitive WebCrypto already ships**. Decrypting to a plain SQLite
+image and reading that with a pure-JS b-tree walker needs no WASM at all. The whole
+layer is ~750 vendored lines with zero dependencies.
 
-**Verdict: worth doing eventually, read-only, permanently.** Users currently get a clear
-message explaining the situation and pointing at rekordbox's own conversion, which is an
-honest answer that costs nothing.
+Measured: a 25-page real export decrypts in 155 ms.
 
-**State: not started. P3 on the roadmap, `for-later`.**
+**The other two objections also fell:**
+
+- *"The schema is undocumented"* — it is documented now. All 22 tables, verified against
+  a real rekordbox 7 export, in the OneLibrary spec. Field semantics too: `bpmx100` is
+  centi-BPM, `length` is seconds, `rating` is 0–5 here (**not** the PDB's 0/51/…/255).
+- *"AlphaTheta can rotate the key"* — still true, and still the standing risk. If it
+  happens, OneLibrary reading breaks and the legacy `export.pdb` path keeps working. The
+  error message says exactly that rather than blaming the user's drive.
+
+**On shipping the key.** The passphrase is a published constant, identical on every
+installation, not machine- or licence-bound, and it protects a file the user already owns
+on hardware they already own. Reading your own library is the defensible case; that is
+the line this project stays on.
+
+**State: done.** `src/lib/onelibrary/`, 18 tests against a real encrypted export.
+Not yet wired into the app's load path — roadmap P7.
 
 ---
 
-## 4. Device Library Plus — writing
+## 4. OneLibrary — writing playlists
 
-**For:** It would make the app work on current hardware without a rekordbox round-trip.
+**Reversed 2026-08-27.** The previous verdict was "no. Not 'later' — no", on the grounds
+that nobody had demonstrated a working third-party writer and there was no way to validate
+output. The first is no longer true and the second was never quite right.
 
-**Against:** The schema is undocumented; **nobody has demonstrated a working third-party
-writer**; there is no way to validate output short of owning the hardware; the key can
-rotate; and the blast radius is the same gig-night failure as above, with none of the
-mitigations, because we could not even verify what we wrote.
+**What changed:** a working encrypt path exists and round-trips, and the schema is known.
+More importantly, output *can* be validated without owning the hardware — not against a
+CDJ, but against the format itself. `applyPlaylistChanges` decrypts and re-reads its own
+output before returning, so a database that would not open never leaves memory.
 
-**Verdict: no. Not "later" — no.** The bridge that already works is telling users to plug
-the drive into rekordbox 6.6.11+, which converts the on-device legacy library. Their
-playlists carry over. That is a one-step manual workaround versus an unbounded risk.
+**What has not changed:** we still have no CDJ to test against. "The file is structurally
+valid" is not "the player accepts it". That gap is real and P1's hardware matrix is the
+only thing that closes it.
 
-**State: explicitly out of scope.**
+### The append-only invariant does not survive here
+
+This is the important part. The PDB writer's first invariant — a write only ever appends,
+so a half-finished write still parses — **cannot hold for SQLite**. Changing one value can
+change its serial type, which grows the record, re-lays-out the page, and can split the
+b-tree. Editing in place is not meaningfully safer than rebuilding and is much easier to
+get wrong.
+
+So OneLibrary writes rebuild the whole file, and invariant 1 is explicitly suspended for
+this path. Pretending otherwise would be dishonest. Invariants 2–6 — verified backup
+before any write, automatic rollback, snapshot-before-restore, never overwrite a good
+library with a damaged backup, never hang on malformed input — all still hold, and carry
+more weight because of it.
+
+### Deliberately not doing: cues
+
+rekordbox does **not** populate the `cue` table on export. A test export where one track
+carried three hot cues and another carried memory cues, a hot cue and a saved loop had
+**zero rows** in `cue` — every one of them lived in the ANLZ files. A writer that fills
+the `cue` table and stops produces a device with no cues on it. Cues are an ANLZ problem,
+and ANLZ writing is not implemented.
+
+**State: library layer done and tested; not yet routed through `commitPlaylists`, so it
+has no backup gate yet. Roadmap P7. Do not ship it to users until it does.**
 
 ---
 
@@ -146,7 +182,10 @@ risky, XML is the honest fallback.
 1. **Read freely, write narrowly.** Reading your own data is safe and uncontroversial.
    Writing is where libraries die.
 2. **Never write what you cannot verify.** If you cannot read it back and prove it says
-   what you meant, do not write it. This alone rules out Device Library Plus.
+   what you meant, do not write it. This used to rule out OneLibrary; it no longer does,
+   because the writer decrypts and re-reads its own output before returning. Note what the
+   principle still rules out: we can verify the *format*, not that a CDJ accepts it, which
+   is why OneLibrary writing is built but not shipped.
 3. **Additive beats destructive.** Appending leaves the original recoverable. Overwriting
    does not.
 4. **Prefer the sanctioned path when it exists.** XML costs the user a click and costs us

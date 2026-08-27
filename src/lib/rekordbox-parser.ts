@@ -89,7 +89,7 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
     return {
       found: false,
       partialMatch: true,
-      message: 'Device Library Plus found, but Legacy library (export.pdb) is missing. This USB works with newer hardware (CDJ-3000, Opus-Quad) but may not work with older CDJs.',
+      message: 'This drive has a OneLibrary database but no legacy export.pdb. Newer players (CDJ-3000X, XDJ-AZ, OPUS-QUAD, OMNIS-DUO) will read it; older CDJs will not see anything on this drive.',
       libraries
     };
   }

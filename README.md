@@ -45,11 +45,15 @@ machine.
 | CDJ-2000 / nexus / NXS2, CDJ-900 | ✅ |
 | CDJ-3000 (firmware ≤ 3.22) | ✅ |
 | XDJ-1000 / RX / RX2 / XZ | ✅ |
-| **OPUS-QUAD, OMNIS-DUO, XDJ-AZ, CDJ-3000X** | ❌ needs Device Library Plus |
+| **OPUS-QUAD, OMNIS-DUO, XDJ-AZ, CDJ-3000X** | ✅ reads OneLibrary |
 
-Newer gear requires AlphaTheta's newer encrypted format. Plug the drive into **rekordbox
-6.6.11 or later** and let it convert the device library — your playlists carry over. The
-app tells you which case you are in.
+Newer gear reads **OneLibrary** (`PIONEER/rekordbox/exportLibrary.db`), a SQLCipher-encrypted
+SQLite database that rekordbox writes *alongside* the legacy one. This app reads both, and
+tells you which decks your drive will actually work in — including the case that catches
+people out, where a drive has only OneLibrary and is therefore invisible to every older CDJ.
+
+If your drive is missing one of the two, re-export it from **rekordbox 6.6.11 or later**;
+both libraries can live on the same stick.
 
 ## Project state
 

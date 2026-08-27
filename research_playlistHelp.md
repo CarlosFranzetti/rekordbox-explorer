@@ -137,18 +137,35 @@ proven they don't. This is the honest residual risk.
 | **OPUS-QUAD, OMNIS-DUO, XDJ-AZ, CDJ-3000X** | ❌ OneLibrary only — *"Rekordbox Device Library Plus not found!"* |
 | CDJ-3000 fw 3.30 | ⚠️ Prioritised OneLibrary; [AlphaTheta pulled the firmware](https://musictech.com/features/pioneer-dj-cdj-3000-firmware-bug-jaguar-mojaxx/) |
 
-Device Library Plus / OneLibrary is a **SQLCipher-encrypted SQLite** database
-(`exportLibrary.db`). The key has been recovered and is public — base85 decode → XOR →
-zlib inflate, shared across all devices ([notes](https://gist.github.com/0xdevalias/b803476793b56f7c45e6361799168eb0)).
-Several projects **read** it (`pyrekordbox`, `onelibrary-connect`). **Nobody has
-demonstrated writing it**, the schema is undocumented, and AlphaTheta can rotate the key in
-any firmware release. We do not attempt it.
+OneLibrary (formerly Device Library Plus) is a **SQLCipher-encrypted SQLite** database at
+`PIONEER/rekordbox/exportLibrary.db`. It is written *alongside* the legacy tree, not
+instead of it — AlphaTheta's own UI says that when a drive carries both, OneLibrary wins.
 
-**The bridge that does work:** plug the drive into rekordbox 6.6.11+ and it converts the
-*on-device* legacy library into Device Library Plus. This is exactly what VirtualDJ users
-do — *"if you make changes on the USB stick via VirtualDJ, only the device library is
+**Superseded 2026-08-27.** This section previously said the schema was undocumented, that
+nobody had demonstrated writing it, and that we would not attempt it. All three have
+changed:
+
+- **The schema is documented** — 22 tables, verified against a real rekordbox 7 export, in
+  the [OneLibrary spec](https://github.com/v1vendi/onelibrary).
+- **The encryption is not the obstacle it looked like.** SQLCipher 4 is AES-256-CBC,
+  PBKDF2-HMAC-SHA512 and HMAC-SHA512 — all of which WebCrypto ships. No SQLCipher-in-WASM
+  build is needed. Page 4096, reserve 80 (16-byte IV + 64-byte HMAC), 256,000 KDF
+  iterations, passphrase supplied as a **string**, never as a raw hex key.
+- **Reading works and is shipped.** A real 25-page export decrypts in ~155 ms.
+- **Playlist writing is implemented and tested** against the format, and verifies its own
+  output by decrypting and re-reading before returning. It is *not* shipped: it has never
+  been validated on real hardware, and it is not yet routed through the backup pipeline.
+
+What has **not** changed is the standing risk: AlphaTheta can rotate the passphrase in any
+firmware release, at which point OneLibrary support breaks and the legacy `export.pdb` path
+keeps working. The app's error message says exactly that rather than blaming your drive.
+
+**The bridge still matters** for the other direction. Plugging a drive into rekordbox
+6.6.11+ converts the on-device legacy library into OneLibrary — the same step VirtualDJ
+users take: *"if you make changes on the USB stick via VirtualDJ, only the device library is
 adapted, and you need to convert it in Rekordbox to update the device library plus as
-well."* So playlists written here can reach an OPUS-QUAD, just not without that step.
+well."* That remains the supported route for getting PDB-written playlists onto an
+OPUS-QUAD.
 
 ---
 
