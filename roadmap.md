@@ -78,8 +78,7 @@ Nothing re-lands until these are done.
 
 - [ ] **ANLZ reading** (`PIONEER/USBANLZ/**/*.DAT/.EXT`) — waveform, beatgrid, hot cues,
       memory points. Read-only. Biggest single UX jump available.
-- [ ] **Device Library Plus reading** so OPUS-QUAD-only drives stop showing as unreadable.
-      Needs SQLCipher-in-WASM. Read-only, permanently. See `database.md`.
+- [x] ~~**Device Library Plus reading**~~ — done, and it needed no WASM. Moved to P7.
 - [ ] **Artwork** from the `artwork` table (page type 13).
 - [ ] **History playlists** (types 11/12) — what you actually played, per gig.
 - [ ] **MyTag** from `exportExt.pdb` (types 3/4).
@@ -101,6 +100,56 @@ Nothing re-lands until these are done.
 - [ ] **Cross-drive dedupe** with actions, not just detection.
 - [ ] **Backup vault on disk**, not just per-drive.
 - [ ] PWA / offline install (manifest already shipped on `main`).
+
+## P7 — OneLibrary → `for-later`
+
+The format AlphaTheta shipped in October 2025 for CDJ-3000X, XDJ-AZ, OPUS-QUAD,
+OMNIS-DUO and CDJ-3000 fw 3.15+. **Reading and playlist writing both work**, in the
+browser, with no WASM and no server — see `database.md` §OneLibrary.
+
+- [x] SQLCipher 4 decrypt/encrypt via WebCrypto (`src/lib/onelibrary/sqlcipher.js`)
+- [x] Read `content` / `playlist` / `playlist_content` into the app's model
+- [x] Create, replace and delete playlists, verified in memory before any write
+- [x] 18 tests against a real encrypted export
+- [ ] **Wire the reader into `useRekordbox`** so a OneLibrary-only drive stops
+      reporting as unreadable. Currently the library layer exists but the load
+      path still only looks for `export.pdb`.
+- [ ] **Route OneLibrary writes through `commitPlaylists`** so they get the same
+      backup gate, verify and rollback the PDB path has. The writer is ready and
+      returns a verified image; only the pipeline wiring is missing.
+- [ ] **Surface the WAL warning in the UI.** `loadOneLibrary` returns one; nothing
+      displays it yet. A silently-truncated library is the worst failure mode here.
+- [ ] Decide the precedence rule when a drive carries both libraries. AlphaTheta
+      says the player prefers OneLibrary; the app should say which one it is showing.
+- [ ] ANLZ writing, without which cues do not exist on a written device.
+
+## P8 — Repair a corrupted library → `for-later`
+
+A drive was pulled without ejecting and its database is now corrupt. The user is
+supplying that USB; **do not guess at a repair before looking at it.** What the
+image actually shows decides everything below.
+
+- [ ] **Capture the evidence first.** Byte-for-byte image of the whole drive
+      before anything touches it, plus `export.pdb`, `exportExt.pdb`,
+      `exportLibrary.db`, and any `-wal`/`-shm` siblings. Work only on copies.
+- [ ] **Classify the damage.** The likely candidates from an unclean eject, in
+      rough order: a truncated final page; a partially-written page whose
+      `num_rows` disagrees with its row index; a FAT allocation-table
+      inconsistency the OS may fix on its own; or — for OneLibrary — a `-wal`
+      that was never checkpointed, which is *not* corruption and just needs
+      replaying.
+- [ ] **Salvage rather than repair, first.** The parser already degrades
+      gracefully per row. A "recover what is readable and write a fresh library"
+      path is far more tractable than in-place surgery and is what a DJ actually
+      needs before doors.
+- [ ] **Check the vaults before anything else.** If this drive was ever opened
+      with backups on, `RBXPLORER_BACKUPS` or `PIONEER/rekordbox/RBXPLORER_SAFETY`
+      may hold a verified good copy, and restoring is already implemented and
+      tested. Ask this question before writing any repair code.
+- [ ] Build the Rescue tab into the thing the recovery note already claims it is
+      (see P2) — scan the drive for any recoverable database and offer to restore.
+- [ ] Turn whatever is learned into a regression fixture, so the case is covered
+      by tests rather than by memory.
 
 ## P6 — Open-source hygiene → `main`
 
@@ -136,7 +185,7 @@ Discogs + what's actually on your drives.
 
 | | Why |
 |---|---|
-| Writing Device Library Plus | Key known, schema not, no working precedent, key can rotate |
+| ~~Writing Device Library Plus~~ | **Reversed 2026-08-27.** The schema is now documented and both directions are implemented and tested — see P7. |
 | Editing track metadata | Touches string tables every other row references |
 | Cloud sync / accounts | The entire pitch is that nothing leaves your machine |
-| Bundling a rekordbox key | Reading your own data is defensible; shipping their key is not |
+| Writing cues to OneLibrary's `cue` table | rekordbox leaves it empty and puts cues in ANLZ. Filling it produces a device with no cues on it. |

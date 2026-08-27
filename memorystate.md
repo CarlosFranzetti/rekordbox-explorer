@@ -112,6 +112,104 @@ numbers will look near-empty by design, and that is not a bug.
 
 ---
 
+## 1c. Solved: "Invalid number of tables: 1179011393"
+
+A user hit this on production. **It was not a bug in the parser and nothing was
+corrupt — they picked the wrong file.**
+
+`1179011393` is `0x46464941`, which little-endian is the ASCII bytes **`AIFF`**.
+An AIFF file is `"FORM"`, a 4-byte size, then `"AIFF"` at offset `0x08` — exactly
+where the PDB header keeps its table count. The parser read an audio file and
+faithfully reported what it found there.
+
+This is a mobile-shaped failure. iOS has no File System Access API, so the app
+falls back to a bare file input and the Files app offers the user their music.
+
+Fixed 2026-08-27 by `src/lib/file-sniff.ts`, which identifies a file from its
+magic bytes before parsing and says what it actually is (AIFF, WAV, MP3, FLAC,
+M4A, Ogg, ZIP, PDF, image, XML, plain SQLite, or an encrypted OneLibrary
+database). The file input also carries an `accept` hint now, but iOS ignores it
+freely, so the byte check is the real gate.
+
+**The general lesson is worth more than the fix**: a validation error that
+echoes a raw parsed number is unactionable. Say what the file is.
+
+---
+
+## 1d. OneLibrary works — reading *and* writing
+
+Verified 2026-08-27 against a real encrypted export. This reverses the roadmap's
+long-standing "deliberately not doing: writing Device Library Plus".
+
+**The whole chain runs in the browser with WebCrypto only** — no WASM, no native
+module, no server:
+
+```
+exportLibrary.db → decrypt (WebCrypto) → SQLite read → edit playlists
+                 → rebuild → encrypt (WebCrypto) → verify → drive
+```
+
+Parameters, all confirmed by decrypting a real file (25 pages in 155 ms):
+
+| | |
+|---|---|
+| Cipher | AES-256-CBC, no padding |
+| Page size | 4096, **reserve 80** = 16-byte IV + 64-byte HMAC-SHA512 |
+| KDF | PBKDF2-HMAC-SHA512, 256,000 iterations, 32-byte key |
+| Salt | first 16 bytes of the file, in the clear |
+| Passphrase | supplied as a **string**, never as a raw hex key |
+
+That last row is the classic integration mistake: `PRAGMA key = 'abc…'` works
+where `PRAGMA key = "x'abc…'"` fails, because the hex form tells SQLCipher to
+skip the KDF entirely.
+
+### The safety model is necessarily different here
+
+The PDB writer's invariant 1 — *a write only ever appends* — **cannot hold for
+SQLite**. Changing one value can change its serial type (a rating of 0 takes
+zero bytes, a rating of 5 takes one), which grows the record, re-lays-out the
+page, and can split the b-tree. So OneLibrary writes rebuild the whole file.
+
+Invariants 2-6 still apply and matter more because of it. The compensating
+control is that `applyPlaylistChanges` **decrypts and re-reads its own output**
+before returning, so a database that would not open is caught in memory, before
+anything goes near a drive.
+
+### Bug caught by a test, worth remembering
+
+The first writer silently renumbered `category_id` 26 → 21. Cause: an
+`INTEGER PRIMARY KEY` column *is* the rowid — SQLite stores NULL in the record
+and recovers the value from the b-tree key — and the writer defaults a missing
+`__rowid` to the row's position. Any table with gaps in its ids got renumbered,
+breaking every reference to it. Fixed by pinning `__rowid` from the declared id
+during the snapshot. The test that caught it asserts every table *except* the
+two playlist tables is unchanged; keep it.
+
+### Still to wire up
+
+The library layer is done and tested; the app does not use it yet. `useRekordbox`
+still only looks for `export.pdb`, OneLibrary writes do not yet go through
+`commitPlaylists`, and the WAL warning is returned but never displayed. See
+roadmap P7.
+
+### The WAL trap
+
+rekordbox leaves most of a fresh export in the write-ahead log — a 118 KB
+`exportLibrary.db` beside a 1.1 MB `exportLibrary.db-wal` is normal. Opening the
+main file alone reports a nearly empty library **with no error at all**. We
+cannot replay a WAL, so `loadOneLibrary` takes the `-wal` size and returns a
+warning. Displaying it is not optional; a silently-truncated library is worse
+than a visible failure.
+
+### Provenance
+
+The SQLCipher and SQLite layers are vendored verbatim from
+[v1vendi/onelibrary](https://github.com/v1vendi/onelibrary) (MIT), kept as
+unmodified `.js` with types alongside so upstream fixes apply as a clean diff.
+See `docs/THIRD-PARTY.md`.
+
+---
+
 ## 2. The rollback: ranked suspects
 
 Nobody captured the error, so this is analysis, not diagnosis. Ranked by how well each
@@ -321,6 +419,14 @@ user can supply the actual console error, most of this list collapses to one ite
 5. Set GitHub topics — see `docs/TOPICS.md`.
 6. Upload `public/og-image.png` as the GitHub social preview (separate setting; it does
    not read `og:image`).
+7. **A corrupt USB is incoming.** A drive was pulled without ejecting and its
+   database is now corrupt; the user is supplying it. Do not write a repair
+   before seeing the image — see roadmap P8. Two things to do first regardless:
+   take a byte-for-byte image and work only on copies, and **check the backup
+   vaults**, because restore is already implemented and tested and may make the
+   whole repair moot.
+8. Wire OneLibrary into the app — the library layer is done, the load and commit
+   paths do not use it yet (roadmap P7).
 
 ---
 
