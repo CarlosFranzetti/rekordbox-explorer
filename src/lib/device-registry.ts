@@ -325,7 +325,7 @@ export async function buildRegistryAdvice(): Promise<RegistryAdvice[]> {
       advice.push({
         severity: 'info',
         deviceId: device.id,
-        message: `"${device.name}" has no Device Library Plus, so OPUS-QUAD, OMNIS-DUO, XDJ-AZ and CDJ-3000X will not read it. Convert it in rekordbox if you need those.`,
+        message: `"${device.name}" has no OneLibrary database, so OPUS-QUAD, OMNIS-DUO, XDJ-AZ and CDJ-3000X fall back to the legacy library. Re-export from rekordbox 6.6.11+ if you want the database those decks prefer.`,
       });
     }
     const ageDays = (now - Date.parse(device.lastSeen)) / 86_400_000;

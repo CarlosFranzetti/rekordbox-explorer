@@ -56,9 +56,11 @@ answer is *reformat and re-export*.
 
 ### Explicitly out of scope
 
-- **Writing Device Library Plus / OneLibrary.** Key is known, schema is not, nobody has
-  demonstrated a working writer, and AlphaTheta can rotate the key. Users are pointed at
-  rekordbox's own conversion instead.
+- **Writing OneLibrary to a drive.** The library layer exists and is tested — see
+  `database.md` — but it is not wired into the app's backup-and-rollback pipeline yet, and
+  nothing has been validated on real hardware. Reading is shipped; writing is not.
+  Superseded entry: this used to read "key is known, schema is not, nobody has demonstrated
+  a working writer". The schema is documented now and a writer exists.
 - **Writing ANLZ files** (waveforms, beatgrids, hot cues). Different format, much larger
   job, and the failure mode is a library that looks fine and is useless on stage.
 - **Editing track metadata.** Retagging touches string tables shared with every other row —

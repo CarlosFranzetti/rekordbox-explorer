@@ -360,7 +360,7 @@ user can supply the actual console error, most of this list collapses to one ite
 | **Manifest never trusted for listing** | A corrupt `manifest.json` is exactly when listing must still work | No |
 | **4-byte row alignment** | Format targeted 16-bit hardware; costs bytes, removes a risk class | Yes |
 | **Sample `page_flags` from existing pages** | Both `0x24` and `0x34` occur; mimic what rekordbox did on *this* drive | Yes |
-| **Don't write Device Library Plus** | Key known, schema not, no working precedent, AlphaTheta can rotate it | Revisit if schema is documented |
+| ~~**Don't write Device Library Plus**~~ | Reversed 2026-08-27: the schema *is* documented now, and a WebCrypto writer exists and round-trips. The key-rotation risk stands. | Built, not shipped — see §1d |
 | **Pick `mode:'read'`, upgrade on demand** | Read-only visitors should never see a write prompt | Yes |
 | **IndexedDB for the device registry** | 10 libraries × 5k tracks blows localStorage's 5 MB | Yes |
 | **Dropped `@tanstack/react-query`** | Zero `useQuery` calls existed. No network to fetch from | Yes |

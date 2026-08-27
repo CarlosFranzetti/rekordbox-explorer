@@ -13,7 +13,7 @@ Format mechanics live in `research_playlistHelp.md`. This is the decision record
 |---|---|---|---|---|
 | **`export.pdb`** | DeviceSQL, on the USB. What CDJs read. | `PIONEER/rekordbox/export.pdb` | No | ✅ **Read + write playlists** |
 | **`exportExt.pdb`** | MyTag extension | same folder | No | ✅ Read only |
-| **`exportLibrary.db`** | Device Library Plus / OneLibrary. SQLite. | `PIONEER/DeviceLibraryPlus/` | **SQLCipher** | ❌ Neither, yet |
+| **`exportLibrary.db`** | OneLibrary (was Device Library Plus). SQLite. | `PIONEER/rekordbox/exportLibrary.db` | **SQLCipher** | ✅ **Read**; playlist writing built, not yet shipped |
 | **`master.db`** | Desktop rekordbox 6/7 collection | App Support | **SQLCipher** | ❌ Out of scope for a browser |
 
 ---
@@ -182,7 +182,10 @@ risky, XML is the honest fallback.
 1. **Read freely, write narrowly.** Reading your own data is safe and uncontroversial.
    Writing is where libraries die.
 2. **Never write what you cannot verify.** If you cannot read it back and prove it says
-   what you meant, do not write it. This alone rules out Device Library Plus.
+   what you meant, do not write it. This used to rule out OneLibrary; it no longer does,
+   because the writer decrypts and re-reads its own output before returning. Note what the
+   principle still rules out: we can verify the *format*, not that a CDJ accepts it, which
+   is why OneLibrary writing is built but not shipped.
 3. **Additive beats destructive.** Appending leaves the original recoverable. Overwriting
    does not.
 4. **Prefer the sanctioned path when it exists.** XML costs the user a click and costs us

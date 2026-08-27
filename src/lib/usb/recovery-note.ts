@@ -149,10 +149,10 @@ files on the drive stay where they are; rekordbox will reuse them.
 
   Newer gear (OPUS-QUAD, OMNIS-DUO, XDJ-AZ, CDJ-3000X) says
   "Device Library Plus not found"
-      -> That hardware needs the newer library format, which this app
-         does not write. Plug the drive into rekordbox 6.6.11 or newer
-         and let it convert the device library. Your playlists carry
-         over.
+      -> That hardware wants the OneLibrary database, which is not on
+         this drive. Plug the drive into rekordbox 6.6.11 or newer and
+         let it convert. Your playlists carry over. Both libraries can
+         live on one stick, so this does not cost you the old decks.
 
   Nothing works and you are on in ten minutes
       -> Use a different drive exported from rekordbox. Sort this one

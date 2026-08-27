@@ -101,7 +101,7 @@ export async function findRekordboxDatabase(directoryHandle: FileSystemDirectory
       found: false,
       partialMatch: true,
       message:
-        'This drive only has Device Library Plus, which this app cannot read yet. It works on OPUS-QUAD, OMNIS-DUO, XDJ-AZ and CDJ-3000X, but older CDJs need the legacy export.pdb.',
+        'This drive only has a OneLibrary database. It works on OPUS-QUAD, OMNIS-DUO, XDJ-AZ and CDJ-3000X, but older CDJs need the legacy export.pdb and will not see anything on this drive.',
       libraries,
     };
   }

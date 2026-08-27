@@ -125,12 +125,12 @@ function CompatibilityIndicator({ libraries }: { libraries?: LibraryPresence }) 
   } else if (libraries.hasLegacy) {
     label = 'Legacy';
     description =
-      'Works on CDJ-2000/900/NXS/NXS2, CDJ-3000 and XDJ series. OPUS-QUAD, OMNIS-DUO, XDJ-AZ and CDJ-3000X need Device Library Plus — plug this drive into rekordbox 6.6.11+ and let it convert.';
+      'Works on CDJ-2000/900/NXS/NXS2, CDJ-3000 and XDJ series. Newer gear (OPUS-QUAD, OMNIS-DUO, XDJ-AZ, CDJ-3000X) can fall back to this, but re-exporting from rekordbox 6.6.11+ adds the OneLibrary database those decks prefer.';
     icon = <Monitor className="h-4 w-4 text-blue-500" />;
   } else if (libraries.hasPlus) {
-    label = 'Plus only';
+    label = 'OneLibrary only';
     description =
-      'Device Library Plus only. Newer gear reads it; older CDJs will not see anything on this drive.';
+      'OneLibrary only. Newer gear reads it; older CDJs will not see anything on this drive. Re-export from rekordbox with the legacy library enabled to fix that — both can live on one drive.';
     icon = <Monitor className="h-4 w-4 text-orange-500" />;
   }
 
