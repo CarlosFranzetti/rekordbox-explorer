@@ -42,11 +42,19 @@ export interface LibraryPresence {
   hasPlus: boolean;
 }
 
+/** Which decks a drive will work in, and whether its two libraries agree. */
+export interface DriveReport {
+  compatibility: import('@/lib/library-check').CompatibilityReport;
+  check: import('@/lib/library-check').DriveCheck;
+  /** Only present when the drive carries both libraries and both were readable. */
+  playlistComparison?: import('@/lib/library-check').PlaylistComparison;
+}
+
 export type USBStatus = 
   | { type: 'idle' }
   | { type: 'loading' }
-  | { type: 'valid'; database: RekordboxDatabase; libraries: LibraryPresence }
-  | { type: 'partial'; message: string; libraries?: LibraryPresence }
+  | { type: 'valid'; database: RekordboxDatabase; libraries: LibraryPresence; drive?: DriveReport }
+  | { type: 'partial'; message: string; libraries?: LibraryPresence; drive?: DriveReport }
   | { type: 'invalid'; message: string }
   | { type: 'error'; message: string };
 

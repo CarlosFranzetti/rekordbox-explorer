@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { PlaylistSidebar } from './PlaylistSidebar';
+import { DriveCompatibilityBanner } from './DriveCompatibilityBanner';
 import { TrackTable } from './TrackTable';
 import { FileBrowser } from './FileBrowser';
 import { SearchBar } from './SearchBar';
@@ -24,11 +25,13 @@ import type {
   SortDirection,
   Track,
   ViewMode,
+  DriveReport,
 } from '@/types/rekordbox';
 
 interface LibraryViewProps {
   database: RekordboxDatabase;
   libraries?: LibraryPresence;
+  drive?: DriveReport;
   rootHandle: FileSystemDirectoryHandle | null;
   selectedPlaylist: Playlist | null;
   onSelectPlaylist: (playlist: Playlist | null) => void;
@@ -50,6 +53,7 @@ interface LibraryViewProps {
 export function LibraryView({
   database,
   libraries,
+  drive,
   rootHandle,
   selectedPlaylist,
   onSelectPlaylist,
@@ -111,6 +115,7 @@ export function LibraryView({
 
   const content = (
     <div className="flex h-full min-w-0 flex-col overflow-hidden">
+      {drive && <DriveCompatibilityBanner drive={drive} />}
       <header className="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-3 py-2 sm:px-4 sm:py-3">
         <div className="flex items-center gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
