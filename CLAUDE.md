@@ -18,8 +18,9 @@ diagnosed. Do not re-land it without working through P0 in `roadmap.md`.
 **Branch rule:** write path, editor, backups, device registry → **`for-later`**.
 Low-risk viewer work and docs → **`main`**.
 
-Also: **Vercel Instant Rollback pins the production alias.** Pushing to `main` builds but
-does not promote. A human must click *Promote to Production*.
+Deployment: pushes to `main` auto-promote to production again. Instant Rollback pinned
+the alias for a long stretch after the rollback — builds went `READY` and changed nothing
+for users — so if a change does not appear live, check that first. `memorystate.md` §1.
 
 ## Tech Stack
 

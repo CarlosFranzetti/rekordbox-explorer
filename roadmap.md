@@ -4,7 +4,7 @@ Every item says **which branch it belongs on**. Two branches are live:
 
 | Branch | What it is | Deploys? |
 |---|---|---|
-| **`main`** | The stable **viewer** + current icon set. What production serves. | Production — builds automatically, **needs a manual promote** (see `memorystate.md` §1) |
+| **`main`** | The stable **viewer** + current icon set. What production serves. | Production — builds and promotes automatically (the old Instant-Rollback pin is lifted; see `memorystate.md` §1) |
 | **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 252 tests. | Preview — auto-deploys to `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` |
 
 A third remote branch, `claude/rekordbox-playlist-export-7wndye`, is stale and superseded
@@ -59,7 +59,7 @@ Nothing re-lands until these are done.
 |---|---|
 | GitHub repo topics (`docs/TOPICS.md` has the command) | *repo setting* |
 | Upload `og-image.png` as GitHub social preview | *repo setting* |
-| **Promote the pinned Vercel deployment** — production still serves the pre-rollback build | *Vercel setting* |
+| ~~**Promote the pinned Vercel deployment**~~ — the Instant-Rollback pin is lifted and pushes auto-promote again; production verified current 2026-09-01 | done |
 | **Enable Web Analytics** — `<Analytics />` is mounted on both branches but the project has it off, so every beacon is dropped | *Vercel setting* |
 | Deployment Protection — resolved, no action needed: production domain is public, all previews and branch aliases are SSO-gated and `noindex`. See `memorystate.md` §1b. | *Vercel setting* |
 | Bundle: `main`'s main chunk is 863 KB (280 KB gzipped), `for-later`'s is ~560 KB — code-split the dialogs | both |

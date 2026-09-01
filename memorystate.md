@@ -11,14 +11,13 @@ re-deriving it. **Read this first.**
 
 | | |
 |---|---|
-| **Production** | `rekordbox-explorer.vercel.app` — the **viewer**. ⚠️ Still serving the pre-rollback build until someone clicks *Promote to Production*. |
+| **Production** | `rekordbox-explorer.vercel.app` — the **viewer**, current with `main`. The Instant-Rollback pin is gone; pushes auto-promote again. |
 | **`main`** | The stable viewer, plus everything added since the rollback: drive compatibility check, OneLibrary reading, USB recovery, audition player |
 | **`for-later`** | The full playlist-**editor** release, parked and unmerged, kept in step with every `main` feature above |
 | **PR #9** | Merged, then rolled back. History intact. |
 
 Both branches build clean and pass their suites — `main` 85 tests, `for-later` 252.
-What is on `main` but *not* live is everything after the rollback: the promote is the
-only thing standing between the two.
+Everything added since the rollback is now live.
 
 ### How we got here
 
@@ -32,30 +31,41 @@ only thing standing between the two.
    auditable, and re-landing is one `git revert`).
 5. The original scaffold icons were replaced with the hard-drive-in-a-circle mark.
 
-### ⚠️ Instant Rollback pins the production alias
+### Instant Rollback pinned the production alias — resolved 2026-09-01
 
-New deployments build and go `READY` but **do not get promoted**. After pushing to `main`
-you must click **Promote to Production** on the deployment, or run
-`vercel promote <deployment-url>`. Symptom that you forgot: the live URL returns a large
-`age:` header and stale HTML while a newer deployment sits `READY`.
+For a long stretch after the rollback, new deployments built and went `READY` but were
+**never promoted**: Instant Rollback holds the production alias on the deployment it
+rolled back to, and nothing in the Vercel UI says so on the deployment page. Every push
+to `main` looked successful and changed nothing for users.
+
+**That pin has since been lifted and pushes auto-promote again.** Verified by fetching
+`rekordbox-explorer.vercel.app` and finding the current build's CSS — not by reading a
+status field, because the deployment record listed the production alias while the pin was
+still in force.
+
+If it ever recurs, the symptom is a large `age:` header and stale HTML on the live URL
+while a newer deployment sits `READY`. The fix is **Promote to Production** on that
+deployment, or `vercel promote <deployment-url>`. The check that actually settles it is
+fetching a hashed asset from the live domain and looking for something only the new build
+contains.
 
 ---
 
 ## 1b. Deployment topology
 
-Verified 2026-08-14 against the Vercel API. Project `prj_wy7F1HyK98thD0ggXxb8JaHMAkWV`,
-team `team_2sVeVCDGjXW2eMc1O6Qr78l5`.
+Verified 2026-09-01 against the Vercel API and by fetching both URLs. Project
+`prj_wy7F1HyK98thD0ggXxb8JaHMAkWV`, team `team_2sVeVCDGjXW2eMc1O6Qr78l5`.
 
 | Target | Branch | URL | State |
 |---|---|---|---|
-| **Production** | `main` | `rekordbox-explorer.vercel.app` | ⚠️ **pinned to the pre-rollback build** |
-| **Preview** | `for-later` | `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` | ✅ auto-builds, `READY` |
+| **Production** | `main` | `rekordbox-explorer.vercel.app` | ✅ auto-builds **and promotes**; serving current `main` |
+| **Preview** | `for-later` | `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` | ✅ auto-builds, `READY`, `noindex` |
 
 Three git branches exist on the remote:
 
 | Branch | Role |
 |---|---|
-| `main` | Stable viewer. Deploys to production (when promoted). |
+| `main` | Stable viewer. Deploys to production automatically. |
 | `for-later` | Parked editor release. Auto-deploys to the branch preview alias above. |
 | `claude/rekordbox-playlist-export-7wndye` | Stale working branch, superseded by the two above. Safe to delete. |
 
