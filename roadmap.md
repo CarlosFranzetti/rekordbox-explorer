@@ -170,6 +170,26 @@ unwritten. Full write-up in `memorystate.md` §1f.
 - [ ] Recover cues from `PIONEER/USBANLZ` — they survive independently of every
       database, one file per track, and are pure gold when a library dies.
 
+## P9 — Audition player → **shipped on both branches**
+
+A transport pinned to the bottom, modelled on the RA-NYC PlayerBar. Double-click
+a row on desktop, single tap on mobile. The queue is whatever is on screen, so
+next/previous follow the current sort and filter.
+
+- [x] Two engines: `<audio>` for what the browser decodes, Web Audio for AIFF
+- [x] **An AIFF decoder** (`src/lib/audio/aiff.ts`), because Chrome cannot decode
+      AIFF by either route and Chrome is the only browser with the File System
+      Access API this app needs. 16/24/32-bit, 8-bit signed, float, `sowt`,
+      arbitrary sample rates. 14 tests.
+- [x] Bar publishes `--player-h` so the table reserves space rather than hiding
+      rows underneath it
+- [ ] **Waveform from ANLZ.** `PIONEER/USBANLZ` already holds the waveform and
+      beatgrid for every track; drawing it in the scrubber is the obvious next
+      step and needs the ANLZ reader from P3.
+- [ ] Cue-point markers on the scrubber, same source.
+- [ ] Remember volume across sessions.
+- [ ] Media Session API so the OS lock screen and headphone buttons work.
+
 ## P6 — Open-source hygiene → `main`
 
 The repo is already open source — public, MIT, licence detected by GitHub. Nothing to

@@ -9,6 +9,10 @@ const COLUMN_WIDTHS_KEY = 'rekordbox-column-widths';
 const COLUMN_ORDER_KEY = 'rekordbox-column-order';
 
 interface TrackTableProps {
+  /** Play a track. When absent the table is not clickable. */
+  onPlay?: (track: Track) => void;
+  /** The track currently loaded in the player, highlighted. */
+  nowPlayingId?: number | null;
   tracks: Track[];
   sortColumn: SortColumn;
   sortDirection: SortDirection;
@@ -88,7 +92,7 @@ function ResizeHandle({ onResizeStart }: ResizeHandleProps) {
   );
 }
 
-export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenColumns }: TrackTableProps) {
+export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenColumns, onPlay, nowPlayingId }: TrackTableProps) {
   const isMobile = useIsMobile();
 
   // Load widths from localStorage on mount, fallback to defaults
@@ -271,7 +275,15 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenCo
           {tracks.map((track, index) => (
             <TableRow
               key={track.id || index}
-              className="border-border transition-colors hover:bg-row-hover"
+              onDoubleClick={() => onPlay?.(track)}
+              // Double-click on a pointer, single tap on touch: a single click
+              // would fight text selection on desktop, and a double tap is not
+              // a gesture phones offer.
+              onClick={() => { if (isMobile) onPlay?.(track); }}
+              aria-current={nowPlayingId === track.id ? 'true' : undefined}
+              className={`border-border transition-colors hover:bg-row-hover ${
+                onPlay ? 'cursor-pointer' : ''
+              } ${nowPlayingId === track.id ? 'bg-primary/10 text-primary' : ''}`}
               style={isMobile ? undefined : { fontSize: 'var(--table-font-size)' }}
             >
               {activeColumns.map((col) => {

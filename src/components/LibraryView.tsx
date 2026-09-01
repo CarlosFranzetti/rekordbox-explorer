@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { FileDown } from 'lucide-react';
 import { PlaylistSidebar } from './PlaylistSidebar';
 import { TrackTable } from './TrackTable';
+import { PlayerBar } from './PlayerBar';
+import { useAudition } from '@/hooks/useAudition';
 import { FileBrowser } from './FileBrowser';
 import { SearchBar } from './SearchBar';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
@@ -71,6 +73,10 @@ export function LibraryView({
 
   const currentPlaylistName = selectedPlaylist?.name || 'All Tracks';
 
+  // The queue is whatever is on screen, so next/previous follow the sort and
+  // filter the user is actually looking at.
+  const audition = useAudition(rootHandle ?? null, filteredTracks);
+
   return (
     <div className="h-screen bg-background">
       <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -128,9 +134,11 @@ export function LibraryView({
               )}
             </header>
 
-            <main className="flex-1 overflow-hidden">
+            <main className="flex-1 overflow-hidden" style={{ paddingBottom: 'var(--player-h, 0px)' }}>
               {viewMode === 'library' ? (
                 <TrackTable
+                  onPlay={(t) => void audition.play(t)}
+                  nowPlayingId={audition.track?.id ?? null}
                   tracks={filteredTracks}
                   sortColumn={sortColumn}
                   sortDirection={sortDirection}
@@ -149,6 +157,15 @@ export function LibraryView({
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      <PlayerBar
+        {...audition}
+        onToggle={() => void audition.toggle()}
+        onSeek={audition.seek}
+        onNext={audition.next}
+        onPrevious={audition.previous}
+        onClose={audition.stop}
+      />
     </div>
   );
 }
