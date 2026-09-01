@@ -3,7 +3,7 @@
 Everything a cold reader — human or agent — needs to pick this project up without
 re-deriving it. **Read this first.**
 
-**Updated:** 2026-08-09 · **Live version:** 0.2.x (viewer) · **Parked version:** 0.3.0 (editor)
+**Updated:** 2026-09-01 · **Live version:** 0.2.x (viewer) · **Parked version:** 0.3.0 (editor)
 
 ---
 
@@ -11,10 +11,14 @@ re-deriving it. **Read this first.**
 
 | | |
 |---|---|
-| **Production** | `rekordbox-explorer.vercel.app` — the **viewer**, plus the new icon set |
-| **`main`** | `53fc8af` tree (stable viewer) + revert commit + branding commit |
-| **`for-later`** | `30d7ec3` — the full playlist-**editor** release, parked, unmerged |
+| **Production** | `rekordbox-explorer.vercel.app` — the **viewer**. ⚠️ Still serving the pre-rollback build until someone clicks *Promote to Production*. |
+| **`main`** | The stable viewer, plus everything added since the rollback: drive compatibility check, OneLibrary reading, USB recovery, audition player |
+| **`for-later`** | The full playlist-**editor** release, parked and unmerged, kept in step with every `main` feature above |
 | **PR #9** | Merged, then rolled back. History intact. |
+
+Both branches build clean and pass their suites — `main` 85 tests, `for-later` 252.
+What is on `main` but *not* live is everything after the rollback: the promote is the
+only thing standing between the two.
 
 ### How we got here
 
@@ -313,6 +317,66 @@ drive. One extra step, and correct.
 times by different software; whichever was open when the drive vanished loses
 its unflushed pages, and the others are untouched. Recovery is a search problem,
 not a repair problem.
+
+---
+
+## 1g. Audition player: the browser is the hard part, not the audio
+
+2026-09-01, shipped on both branches. `src/lib/audio/`, `useAudition`, `PlayerBar`.
+
+### Chrome cannot play AIFF, and Chrome is the only browser that can open a USB
+
+Verified in headless Chromium, both routes: `canPlayType('audio/aiff')` returns
+`""` and `decodeAudioData` throws `EncodingError`. Safari decodes AIFF happily and
+has no folder picker. So on the one browser with the File System Access API this
+app needs, the format most of a vinyl-leaning library is stored in is unplayable.
+
+AIFF is uncompressed PCM in a chunked container, so `aiff.ts` decodes it directly —
+arithmetic, not a codec. That is the difference between "auditioning does not work
+for most of your library" and "it works". **Do not remove it as redundant.**
+
+### Capability is probed, never hardcoded
+
+Which formats fail varies by **build**, not just by browser: Chrome ships AAC, a
+Chromium compiled without proprietary codecs does not, and *both report the same
+empty string* from `canPlayType`. A hardcoded extension list is therefore wrong on
+somebody's machine, and the failure mode is silence — the worst way to be wrong.
+`formats.ts` probes once per extension and caches, resolving each file to `native`,
+`decode`, or `unsupported`.
+
+The decoders also serve as the fallback when native playback is advertised and then
+fails anyway.
+
+### Traps that cost real time
+
+| Trap | What happens |
+|---|---|
+| **8-bit AIFF is signed, 8-bit WAV is unsigned** | Swap them and you get a loud DC offset, not a visible bug. Both directions are pinned by tests. |
+| **Chunk headers declare the original length** | A file rescued off a dying drive is shorter than it claims. Decoders clamp to `bytes.length`, never to the header. Caught by the truncation test, not by inspection. |
+| **`WAVE_FORMAT_EXTENSIBLE`** | The real format tag hides at `body + 24` inside a GUID; the visible tag is `0xFFFE` for everything. |
+| **Buffer sources cannot pause** | Web Audio `AudioBufferSourceNode` is one-shot. Position is tracked with `startedAt`/`offset` and a fresh node is created on resume. |
+| **`copyToChannel` vs `getChannelData().set()`** | The former trips TypeScript's `Float32Array` variance under this config. Use the latter. |
+
+### Layout decisions, each made against a screenshot
+
+- **Contents capped at `max-w-3xl`, surface full width.** Left alone the seek
+  control stretched past 2000px on a wide monitor, where one pixel is a fifth of a
+  second — precision nobody aims for, and it dominated the layout. The surface still
+  spans the viewport so it reads as a bar. Below the cap the constraint does nothing.
+- **A floating bordered card, not a full-bleed strip.** Inset from all four edges;
+  12px + safe-area on a phone so it clears the home indicator, 8px on desktop.
+- **The seek row is padded on both sides.** The 18px handle plus its 3px ring nearly
+  fills its own row, so flush against the transport a thumb aiming for the scrubber
+  hits the play button. Measured: 23px above the track, 20px below, ring 11px clear
+  of the buttons.
+- **`--player-h` is measured to the bottom of the viewport**, not from the bar's own
+  height — the bar floats, so the table must clear the gap too — and re-published on
+  resize because the offset is viewport-relative. It is measured rather than a
+  constant because the bar grows when an error line appears.
+
+`preview.html` + `src/preview-main.tsx` render the real `TrackTable` and `PlayerBar`
+against ten fixture tracks so all of this can be checked without a USB. Vite only
+builds `index.html`, so the harness never ships.
 
 ---
 

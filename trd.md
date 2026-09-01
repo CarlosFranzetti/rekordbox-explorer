@@ -20,15 +20,18 @@ No backend, no state library, no data-fetching library — there is no network t
                      ┌─────────────────────────────────────┐
   components/        │ LibraryView · PlaylistEditor        │  React, no binary logic
                      │ BackupsDialog · DevicesDialog       │
+                     │ PlayerBar · RecoveryDialog          │
                      └───────────────┬─────────────────────┘
                                      │
-  hooks/             │ useRekordbox · usePlaylistEditor · useSettings │  state only
+  hooks/             │ useRekordbox · usePlaylistEditor · useAudition · useSettings │  state
                                      │
                      ┌───────────────┴─────────────────────┐
   lib/usb/           │ commit · backup · fs · recovery-note │  drive I/O, orchestration
+  lib/recovery/      │ assess · engine · xml                │  read-only triage
                      └───────────────┬─────────────────────┘
                                      │
   lib/pdb/           │ playlists · structure · devicesql    │  pure binary codec
+  lib/audio/         │ formats · aiff · wav                 │  pure binary codec
   lib/               │ playlist-draft · export/ · zip       │  pure logic
 ```
 
@@ -52,6 +55,9 @@ imports below `hooks/`. No `DataView` above `lib/`.
 | `lib/export/exporters.ts` | CSV / M3U8 / TXT / JSON / rekordbox XML. Pure strings. |
 | `lib/pdf-export.ts` | PDF (lazy-loaded jsPDF) and print. |
 | `lib/zip.ts` | Store-only ZIP writer for backup archives. |
+| `lib/audio/formats.ts` | Runtime codec probe → `native` \| `decode` \| `unsupported`. Cached per extension. |
+| `lib/audio/aiff.ts` · `wav.ts` | Hand-written PCM decoders. No audio dependency in the tree. |
+| `lib/recovery/{assess,engine,xml}.ts` | Damaged-drive triage, Engine DJ reader, XML emitter. Read-only. |
 
 ## 4. The write pipeline
 
@@ -119,9 +125,33 @@ These are enforced by tests, not by convention:
 6. **Malformed input never hangs or throws out of the parser.** Cycle guards, bounds
    checks, per-row try/catch.
 
+## 6a. Audio playback
+
+Two engines behind one state hook (`useAudition`):
+
+| Route | When | How |
+|---|---|---|
+| `<audio>` | The browser decodes the format | Object URL from the `File`; native transport |
+| Web Audio | It does not | Decode to `AudioBuffer`, play through an `AudioBufferSourceNode` |
+
+`formats.ts` decides which, by **probing at runtime** rather than matching an extension
+list. Which formats a browser refuses depends on the build — Chrome ships AAC, a
+codec-less Chromium does not, and both return `""` from `canPlayType` — so a static list
+is wrong on somebody's machine and the failure mode is silence.
+
+The decoders exist because Chrome cannot play AIFF by either route, and Chrome is the
+only browser with the File System Access API this app needs. Two implementation notes
+that are easy to get backwards: **8-bit AIFF is signed, 8-bit WAV is unsigned**, and both
+decoders clamp to the bytes present rather than the length the chunk header declares —
+a file rescued off a failing drive still claims its original size.
+
+A buffer source cannot be paused, so position is tracked with `startedAt`/`offset` and a
+new node is created on resume. ALAC is the one rekordbox format nothing here can play; it
+is reported by name, with the note that the track still plays on a CDJ.
+
 ## 7. Testing
 
-`npm test` — 155 tests, no network, no real filesystem.
+`npm test` — 252 tests on `for-later`, 85 on `main`. No network, no real filesystem.
 
 Two fixtures do the heavy lifting:
 
@@ -143,6 +173,9 @@ Two fixtures do the heavy lifting:
 | `usb/backup.test.ts` | Dual vaults, verification, rotation, restore, corruption |
 | `usb/commit.test.ts` | All 8 steps, rollback, abort paths |
 | `export/exporters.test.ts` | Escaping — CSV formula injection, M3U8 line injection, XML |
+| `audio/aiff.test.ts` · `wav.test.ts` | Bit depths, endianness, signedness, truncation, compressed variants. These are the *only* proof the decoders work — Chrome cannot decode AIFF, so there is nothing to cross-check against. |
+| `audio/formats.test.ts` | The probe's three outcomes, and that an unsupported format names itself |
+| `library-check.test.ts` | Legacy vs OneLibrary detection, per-generation support, playlist comparison |
 
 ## 8. Browser support
 
@@ -151,6 +184,7 @@ Two fixtures do the heavy lifting:
 | Open a folder | ✅ | ❌ |
 | Read `export.pdb` | ✅ | ✅ via file picker |
 | Edit, back up, restore | ✅ | ❌ |
+| Audition tracks | ✅ (AIFF/WAV decoded locally) | ✅ for the single file picked |
 | Export / print | ✅ | ✅ |
 
 Write support is gated on `supportsWriteAccess()` — `showDirectoryPicker` plus

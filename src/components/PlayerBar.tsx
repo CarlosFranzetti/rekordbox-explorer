@@ -15,6 +15,11 @@ import type { AuditionState } from '@/hooks/useAudition';
  * dominated the layout, and the precision was far beyond anything a person aims
  * for when scrubbing. Below the cap — phones, narrow windows — the constraint
  * does nothing and the bar fills the width as before.
+ *
+ * The seek row is padded on both sides rather than sitting flush against the
+ * transport. The handle is 18px wide with a 3px ring, so its hit area reaches
+ * almost to the edge of its own row: without the gap, a thumb aiming for the
+ * scrubber lands on the play button instead.
  */
 
 function clock(seconds: number): string {
@@ -88,7 +93,7 @@ export function PlayerBar({
       ref={barRef}
       className="player-live player-inset fixed inset-x-2 z-50 overflow-hidden rounded-xl border border-primary/70 bg-background/95 backdrop-blur-lg sm:inset-x-3"
     >
-      <div className="mx-auto flex w-full max-w-3xl items-center gap-2 px-3 pt-2.5">
+      <div className="mx-auto flex w-full max-w-3xl items-center gap-2 px-3 pb-2.5 pt-3">
         <span className="w-10 shrink-0 text-right text-[0.625rem] tabular-nums text-muted-foreground">
           {clock(shown)}
         </span>

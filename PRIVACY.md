@@ -8,6 +8,11 @@ file paths and drive contents are never transmitted anywhere.
 
 Verify it yourself: open DevTools → Network, load a drive, and watch. Nothing goes out.
 
+**Audio is no exception.** Playing a track reads that file from your drive into browser
+memory and decodes it there — AIFF and some WAV variants are decoded by code in this app,
+because no Chromium can play them. The audio is never uploaded, streamed, or sent to a
+codec service, and nothing is cached to disk.
+
 ## What is stored locally
 
 | Where | What | How to clear |

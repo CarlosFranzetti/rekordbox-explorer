@@ -36,7 +36,7 @@ Also worth setting the description and homepage while you're there:
 
 ```bash
 gh repo edit CarlosFranzetti/rekordbox-explorer \
-  --description "Open your rekordbox USB in a browser. Browse it, edit playlists with verified backups, print setlists. No uploads, no installs." \
+  --description "Open your rekordbox USB in a browser. Browse it, audition tracks, rescue a drive that died, print setlists. No uploads, no installs." \
   --homepage "https://rekordbox-explorer.vercel.app"
 ```
 

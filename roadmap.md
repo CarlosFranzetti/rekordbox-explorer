@@ -194,12 +194,21 @@ next/previous follow the current sort and filter.
       with the reassurance that the track will still play on a CDJ.
 - [x] Bar publishes `--player-h` so the table reserves space rather than hiding
       rows underneath it
+- [x] **Layout, settled against screenshots** — contents capped at `max-w-3xl` so
+      the seek control stops stretching past 2000px on a wide monitor; the bar
+      floats as a bordered card clear of all four edges (12px + safe-area on a
+      phone, 8px on desktop); a 7px track with an 18px ringed handle; and padding
+      on both sides of the seek row, because the handle's hit area otherwise
+      reaches the play button. Reasoning in `memorystate.md` §1g.
+- [x] `preview.html` — renders the real table and player against fixture tracks,
+      so layout can be checked without a USB. Dev-only; Vite never builds it.
 - [ ] **Waveform from ANLZ.** `PIONEER/USBANLZ` already holds the waveform and
       beatgrid for every track; drawing it in the scrubber is the obvious next
       step and needs the ANLZ reader from P3.
 - [ ] Cue-point markers on the scrubber, same source.
 - [ ] Remember volume across sessions.
 - [ ] Media Session API so the OS lock screen and headphone buttons work.
+- [ ] **Volume / gain control.** There is none — playback is at system volume.
 
 ## P6 — Open-source hygiene → `main`
 

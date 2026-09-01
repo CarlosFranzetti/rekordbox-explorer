@@ -47,6 +47,16 @@ independently of the writer on purpose — do not refactor it to share the write
 Use `src/test/fixtures/memory-fs.ts` for anything touching a drive. It supports fault
 injection, so "the drive corrupted the write" is a unit test, not a hope.
 
+The audio decoders (`src/lib/audio/`) work the same way: `aiff.test.ts` and `wav.test.ts`
+build files in memory at each bit depth and variant. Chrome cannot decode AIFF at all, so
+those tests are the *only* proof the decoder is correct — there is no reference
+implementation in the browser to compare against. Add a case for anything you change.
+
+## Looking at the player without a USB
+
+`npm run dev`, then open `/preview.html`. It renders the real `TrackTable` and `PlayerBar`
+against fixture tracks. It is dev-only — Vite builds `index.html` alone, so it never ships.
+
 ## Format changes
 
 Cite the source. The reference is
