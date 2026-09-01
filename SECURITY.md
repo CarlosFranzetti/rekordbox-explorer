@@ -5,7 +5,9 @@
 This app has no server, no accounts and no secrets. Two things matter:
 
 1. **`export.pdb` is untrusted input.** It is a binary file the app did not write, and a
-   malformed or hostile one must not crash, hang, or exfiltrate anything.
+   malformed or hostile one must not crash, hang, or exfiltrate anything. The same applies
+   to every other binary the drive hands us: `exportExt.pdb`, OneLibrary, an Engine DJ
+   database, and the audio files themselves.
 2. **Writes are destructive by nature.** The worst realistic outcome is a lost library, not
    a compromised machine — so the safety work lives in `lib/usb/`, not here.
 
@@ -18,6 +20,22 @@ This app has no server, no accounts and no secrets. Two things matter:
 | Infinite loops | Visited-page set on every chain walk; row-group counts derived, not trusted |
 | One bad row killing a library | Per-row `try/catch`; rows the presence bitmap marks absent are skipped |
 | Prototype pollution | No `JSON.parse` of binary content; parsed data only ever lands in typed `Map`s and fixed-shape objects |
+
+## Audio decoder hardening
+
+The AIFF and WAV decoders read files the app did not write, on the same terms as the
+database parser:
+
+| Risk | Mitigation |
+|---|---|
+| A chunk header declaring more data than the file holds | Sample counts clamp to `bytes.length`, never to the declared length. A truncated file decodes what survived instead of reading past the end. |
+| A header with zero channels or an absurd bit depth | Rejected with a message, before any allocation is sized from it |
+| Runaway allocation | Output buffers are sized from the *clamped* frame count, so a forged header cannot ask for gigabytes |
+| Chunk-walk loops | The walk advances by the declared size plus its pad byte and is bounded by the buffer; it cannot revisit |
+| Leaked object URLs | `createObjectURL` for native playback is revoked when the track changes or the player closes |
+
+Both are covered by tests for the truncated and malformed cases specifically, not just
+the happy path.
 
 ## Output escaping
 

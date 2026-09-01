@@ -7,14 +7,19 @@ Format mechanics live in `research_playlistHelp.md`. This is the decision record
 
 ---
 
-## The three databases
+## The databases on a stick
 
 | | What | Where | Encrypted | Our stance |
 |---|---|---|---|---|
 | **`export.pdb`** | DeviceSQL, on the USB. What CDJs read. | `PIONEER/rekordbox/export.pdb` | No | ✅ **Read + write playlists** |
 | **`exportExt.pdb`** | MyTag extension | same folder | No | ✅ Read only |
 | **`exportLibrary.db`** | OneLibrary (was Device Library Plus). SQLite. | `PIONEER/rekordbox/exportLibrary.db` | **SQLCipher** | ✅ **Read**; playlist writing built, not yet shipped |
+| **`m.db`** | Engine DJ (Denon). SQLite. | `Engine Library/Database2/m.db` | No | ✅ Read, **for recovery only** — see §5a |
 | **`master.db`** | Desktop rekordbox 6/7 collection | App Support | **SQLCipher** | ❌ Out of scope for a browser |
+
+The fourth row is the one people are surprised by, and it is the reason a drive that
+looked dead came back — a stick usually carries more than one library, written at
+different moments.
 
 ---
 
@@ -159,6 +164,35 @@ bookkeeping or you corrupt cloud sync. And the sanctioned interop path already e
 **Verdict: not in the browser. This is rickordbox's job, if anyone's.**
 
 **State: out of scope here; noted for the desktop tier.**
+
+---
+
+## 5a. Engine DJ `m.db` — read, and only to save a drive
+
+Not a Pioneer database at all: Denon's, at `Engine Library/Database2/m.db`, plain
+unencrypted SQLite. It is in this record because a rekordbox stick frequently has one
+sitting next to the Pioneer files, and **that is what recovered a real drive.**
+
+**For:** It is written by different software at a different time. When a drive is pulled
+mid-write, the database that was open loses its unflushed pages and the others do not —
+so the Engine library is often intact when every rekordbox file on the same stick is not.
+On the drive this was built against, all three rekordbox databases stopped at exactly
+32 KB while `m.db` was 616 of 620 pages, last written four days earlier. Every playlist
+came back from it.
+
+`Track.pdbImportKey` is the clincher: it carries the `sequence` from the `export.pdb` the
+Engine library was imported from, so you can *prove* the two are the same library rather
+than hoping.
+
+**Against:** Nothing, at the scope we use it. It is read-only, it is not encrypted, and no
+Pioneer EULA covers it.
+
+**Verdict: read it, for recovery only.** It is a source to rebuild *from*, never a
+destination. We do not write Engine libraries and have no reason to.
+
+**State: shipped on both branches** — `src/lib/recovery/engine.ts`. Read with the same
+forgiving b-tree walker as OneLibrary, because a real SQLite engine rejects a truncated
+file outright and the whole point is reading one that is damaged.
 
 ---
 

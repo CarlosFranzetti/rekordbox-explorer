@@ -41,6 +41,21 @@ real SQLCipher database of three Kevin MacLeod tracks (CC BY 4.0,
 incompetech.com). It is the fixture the OneLibrary tests run against, so they
 exercise the genuine production key path rather than something we synthesised.
 
+## Not vendored: the audio decoders
+
+`src/lib/audio/aiff.ts` and `wav.ts` are written from the format specifications
+rather than adapted from an existing library, and they pull in no dependency.
+
+That is deliberate. The published JS decoders are either Node-only, carry a
+`Buffer` polyfill, or decode into a shape that would need converting anyway; the
+part this app actually needs — uncompressed PCM out of a chunked container — is
+a few hundred lines of arithmetic. Every awkward case is covered by a test
+because there is nothing to cross-check against: Chrome cannot decode AIFF at
+all, so the tests are the only proof the decoder is right.
+
+FLAC, MP3 and AAC are **not** decoded here. The browser plays those natively,
+and shipping a decoder for a format that already works would be strictly worse.
+
 ## Prior art this project depends on but does not vendor
 
 The `.pdb` format is not documented by Pioneer. Everything this app knows about

@@ -7,6 +7,8 @@
 [Open the app](https://rekordbox-explorer.vercel.app) ·
 [What it does](#what-it-does) ·
 [Player compatibility](#will-my-player-read-it) ·
+[Auditioning](#auditioning-tracks) ·
+[When a drive dies](#when-a-drive-dies) ·
 [Project state](#project-state) ·
 [Support it](#support-the-project)
 
@@ -25,6 +27,8 @@ machine.
 |---|---|
 | ⚡ **Reads your drive instantly** | Tracks, artists, albums, genres, keys, labels, the full playlist tree. |
 | 🔍 **Search and sort** | Resizable, reorderable columns. Browse raw files too. |
+| ▶️ **Auditions your tracks** | Play straight off the stick — including AIFF, which no Chromium can play on its own. |
+| 🚑 **Rescues a drive that died** | Finds an intact library when the one rekordbox uses was cut off mid-write. |
 | 📄 **PDF setlists** | Printable, respects your visible columns. |
 | 🎛️ **Tells you the truth about hardware** | Which players will read this drive, and which will not. |
 | 🌗 **Readable in a dark booth** | Four themes, font scaling, works on a phone. |
@@ -55,6 +59,37 @@ people out, where a drive has only OneLibrary and is therefore invisible to ever
 If your drive is missing one of the two, re-export it from **rekordbox 6.6.11 or later**;
 both libraries can live on the same stick.
 
+## Auditioning tracks
+
+Double-click a row (single tap on a phone) and it plays from the stick. The queue is
+whatever is on screen, so skip forward and back follow your current sort and filter.
+
+| Format | Plays? |
+|---|---|
+| MP3, WAV, FLAC | ✅ browser plays it |
+| **AIFF** | ✅ **decoded here** — no Chromium plays AIFF, by any route |
+| WAV 24-bit / 32-bit float / extensible | ✅ decoded here when the browser refuses |
+| AAC / M4A | ✅ wherever the browser ships the codec — Chrome does |
+| ALAC | ❌ nothing can preview it. Named plainly, and it still plays on a CDJ. |
+
+Support is **probed at runtime**, not assumed from the file extension: which formats a
+browser refuses depends on the build, not just the brand, and the failure mode of guessing
+wrong is silence.
+
+## When a drive dies
+
+Pull a stick without ejecting and rekordbox's databases can stop mid-write. **Settings →
+Attempt USB recovery** looks for a library that survived — a stick usually carries several,
+written at different times, and only the one that was open is damaged. It checks the legacy
+`export.pdb`, OneLibrary, journals and `-wal` files, and an Engine DJ library if the drive
+has one.
+
+It is **read-only** — it never writes to your drive — and it outputs rekordbox XML, which
+you import to have rekordbox rebuild the drive properly.
+
+It also tells you when a file is *unwritten* rather than corrupt. Those are different
+problems, and only one of them has a fix.
+
 ## Project state
 
 Two branches, on purpose:
@@ -62,7 +97,7 @@ Two branches, on purpose:
 | Branch | What | Status |
 |---|---|---|
 | **`main`** | The **viewer** described above | ✅ Live |
-| **`for-later`** | The **playlist editor**: create/edit playlists and write them back to the USB, with dual verified on-drive backups, a verified write pipeline with automatic rollback, a cross-drive device registry, six export formats, and 155 tests | ⏸️ Built, then rolled back from production. Parked pending diagnosis. |
+| **`for-later`** | The **playlist editor**: create/edit playlists and write them back to the USB, with dual verified on-drive backups, a verified write pipeline with automatic rollback, a cross-drive device registry, six export formats, and 252 tests | ⏸️ Built, then rolled back from production. Parked pending diagnosis. |
 
 The editor release was merged, deployed, and rolled back after issues in production. The
 work is intact on `for-later`; nothing was lost. What is known, what is suspected, and
@@ -94,7 +129,11 @@ npm test
 
 React 18 · Vite · TypeScript · Tailwind · shadcn/ui. No backend, no accounts. The binary
 parser is hand-written against the
-[crate-digger](https://github.com/Deep-Symmetry/crate-digger) Kaitai spec.
+[crate-digger](https://github.com/Deep-Symmetry/crate-digger) Kaitai spec, and so are the
+AIFF and WAV decoders — there is no audio library in the dependency tree.
+
+`npm run dev` then open `/preview.html` to see the player against fixture tracks, without
+needing a USB plugged in.
 
 ## Privacy
 

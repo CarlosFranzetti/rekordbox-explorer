@@ -10,7 +10,7 @@ Two branches, and **which one you are on changes everything**:
 | Branch | Contents | Deployed |
 |---|---|---|
 | **`main`** (this one) | The stable **viewer**. `src/lib/rekordbox-parser.ts` + components. | ✅ Yes |
-| **`for-later`** | The **editor** release: `lib/pdb/`, `lib/usb/`, `lib/export/`, playlist editor, backups, device registry, 155 tests. | ⏸️ Rolled back |
+| **`for-later`** | The **editor** release: `lib/pdb/`, `lib/usb/`, `lib/export/`, playlist editor, backups, device registry, recovery, the audition player, 252 tests. | ⏸️ Rolled back |
 
 The editor was deployed and rolled back after production issues that were never
 diagnosed. Do not re-land it without working through P0 in `roadmap.md`.
@@ -35,9 +35,14 @@ jsPDF · react-qr-code · Vitest. **No backend.**
 | `src/components/LibraryView.tsx` | Sidebar + track table |
 | `src/components/PlaylistSidebar.tsx` | Playlist tree, settings, theme/font |
 | `src/components/TrackTable.tsx` | Resizable, sortable, drag-and-drop columns |
+| `src/components/PlayerBar.tsx` | Audition transport, floating at the bottom |
 | `src/lib/rekordbox-parser.ts` | Binary `.pdb` parser — the core engine |
 | `src/lib/pdf-export.ts` | PDF generation |
+| `src/lib/audio/formats.ts` | Runtime codec probe — native, decode, or unsupported |
+| `src/lib/audio/aiff.ts` · `wav.ts` | Hand-written PCM decoders for what Chrome refuses |
+| `src/lib/recovery/` | Damaged-drive recovery — read-only, XML out |
 | `src/hooks/useRekordbox.ts` | Loading, File System Access API, state |
+| `src/hooks/useAudition.ts` | Playback state, two engines, the play queue |
 | `src/hooks/useSettings.ts` | localStorage preferences |
 | `src/types/rekordbox.ts` | Track, Playlist, RekordboxDatabase |
 
@@ -49,6 +54,10 @@ npm run build
 npm run preview
 npm test
 ```
+
+`preview.html` is a dev-only harness that renders the real `TrackTable` and `PlayerBar`
+against fixture tracks, so the player can be looked at without a USB attached. Vite only
+builds `index.html`, so it never ships.
 
 ## Important notes
 
@@ -95,6 +104,31 @@ pulled loses its unflushed pages, the others are fine. That is a search problem.
 - Recovery is **read-only**. It never writes to the drive.
 - Output is **rekordbox XML only**. Never synthesise an `export.pdb` — see
   `xml.ts` for why, and do not "improve" this without a CDJ to test against.
+
+## Audition player (`src/lib/audio/`, `useAudition`, `PlayerBar`)
+
+**Probe the browser, never hardcode a format list.** Which formats fail varies by
+browser *and* by build: Chrome ships AAC, a Chromium compiled without proprietary
+codecs does not, and both return the same empty string from `canPlayType`. A
+hardcoded list is wrong on somebody's machine and the failure mode is silence.
+`formats.ts` resolves each file to `native`, `decode` or `unsupported`.
+
+- **Chrome cannot play AIFF at all** — not via `<audio>`, not via `decodeAudioData` —
+  and Chrome is the only browser with the File System Access API this app needs. Most
+  of a vinyl-leaning library is AIFF, so `aiff.ts` decodes it directly. Do not delete
+  it as redundant; nothing else can play those tracks.
+- **8-bit AIFF is signed; 8-bit WAV is unsigned.** Getting this backwards produces a
+  loud DC offset rather than an obvious bug. Both directions are pinned by tests.
+- Decoders **clamp to the bytes actually present**, never to the length a chunk header
+  claims. A rescued file declares its original size; trusting that reads past the end.
+- A format nothing can decode (ALAC) is **named in the message**, with the reassurance
+  that the track still plays on a CDJ. Never fail silently.
+- The bar publishes `--player-h`, measured to the bottom of the viewport, and the track
+  table reserves that much padding. It is measured rather than a constant because the
+  bar grows when an error line appears.
+- **Leave the padding around the seek row alone.** The handle is 18px with a 3px ring,
+  so its hit area nearly fills its row; without the gap, a thumb aiming for the
+  scrubber lands on the play button.
 
 ## Writing for users
 
