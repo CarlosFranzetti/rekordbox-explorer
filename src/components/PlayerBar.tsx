@@ -55,13 +55,19 @@ export function PlayerBar({
   useEffect(() => {
     const el = barRef.current;
     if (!el) return;
-    const publish = () =>
-      document.documentElement.style.setProperty('--player-h', `${el.offsetHeight}px`);
+    // Measure to the bottom of the viewport, not just the bar's height: the bar
+    // floats clear of the edge, so the table has to clear that gap too.
+    const publish = () => {
+      const gap = window.innerHeight - el.getBoundingClientRect().top;
+      document.documentElement.style.setProperty('--player-h', `${Math.ceil(gap)}px`);
+    };
     publish();
     const observer = new ResizeObserver(publish);
     observer.observe(el);
+    window.addEventListener('resize', publish);
     return () => {
       observer.disconnect();
+      window.removeEventListener('resize', publish);
       document.documentElement.style.setProperty('--player-h', '0px');
     };
   }, [track]);
@@ -80,9 +86,9 @@ export function PlayerBar({
   return (
     <div
       ref={barRef}
-      className="player-live fixed inset-x-0 bottom-0 z-50 border-t-2 border-primary/70 bg-background/95 pb-safe backdrop-blur-lg"
+      className="player-live player-inset fixed inset-x-2 z-50 overflow-hidden rounded-xl border border-primary/70 bg-background/95 backdrop-blur-lg sm:inset-x-3"
     >
-      <div className="mx-auto flex w-full max-w-3xl items-center gap-2 px-3 pt-2">
+      <div className="mx-auto flex w-full max-w-3xl items-center gap-2 px-3 pt-2.5">
         <span className="w-10 shrink-0 text-right text-[0.625rem] tabular-nums text-muted-foreground">
           {clock(shown)}
         </span>
@@ -111,7 +117,7 @@ export function PlayerBar({
         </span>
       </div>
 
-      <div className="mx-auto flex w-full max-w-3xl items-center gap-1 px-2 pb-2">
+      <div className="mx-auto flex w-full max-w-3xl items-center gap-1 px-2 pb-2.5">
         <button onClick={onPrevious} disabled={!hasPrevious} aria-label="Previous track" className={control}>
           <SkipBack className="h-4 w-4" />
         </button>
