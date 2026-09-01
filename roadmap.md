@@ -176,11 +176,22 @@ A transport pinned to the bottom, modelled on the RA-NYC PlayerBar. Double-click
 a row on desktop, single tap on mobile. The queue is whatever is on screen, so
 next/previous follow the current sort and filter.
 
-- [x] Two engines: `<audio>` for what the browser decodes, Web Audio for AIFF
-- [x] **An AIFF decoder** (`src/lib/audio/aiff.ts`), because Chrome cannot decode
-      AIFF by either route and Chrome is the only browser with the File System
-      Access API this app needs. 16/24/32-bit, 8-bit signed, float, `sowt`,
-      arbitrary sample rates. 14 tests.
+- [x] Two engines: `<audio>` for what the browser decodes, Web Audio for the rest
+- [x] **Runtime capability probing** (`formats.ts`) rather than a hardcoded list.
+      Which formats fail varies by browser *and* build — Chrome ships AAC, a
+      Chromium without proprietary codecs does not, and both report the same
+      empty string from `canPlayType`. A hardcoded list would be wrong on
+      somebody's machine and the failure mode is silence.
+- [x] **AIFF decoder** — Chrome cannot decode AIFF by either route, and Chrome is
+      the only browser with the File System Access API this app needs.
+- [x] **WAV decoder** for the variants browsers refuse: 24-bit, 32-bit float and
+      `WAVE_FORMAT_EXTENSIBLE`. Also the fallback when native playback is
+      advertised and then fails anyway.
+- [x] Every rekordbox format plays or explains itself: MP3, WAV, AIFF and FLAC
+      play; AAC plays wherever the browser has it. 29 decoder tests.
+- [ ] **ALAC.** The one rekordbox format nothing can preview — no browser decodes
+      it and a real decoder is a large piece of work. Currently reported by name
+      with the reassurance that the track will still play on a CDJ.
 - [x] Bar publishes `--player-h` so the table reserves space rather than hiding
       rows underneath it
 - [ ] **Waveform from ANLZ.** `PIONEER/USBANLZ` already holds the waveform and

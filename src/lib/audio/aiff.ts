@@ -171,26 +171,3 @@ export function decodeAiff(bytes: Uint8Array): DecodedAudio {
 
   return { channels: out, sampleRate, frames: total };
 }
-
-/**
- * Formats the browser can play natively, by extension.
- *
- * Deliberately conservative: guessing wrong means a silent failure, and the
- * fallback path costs only a decode.
- */
-const NATIVE = new Set(['mp3', 'm4a', 'mp4', 'wav', 'flac', 'ogg', 'oga', 'opus', 'aac']);
-
-export function extensionOf(path: string): string {
-  return (path.split('.').pop() ?? '').toLowerCase();
-}
-
-/** True when `<audio src>` is likely to work for this file. */
-export function playsNatively(path: string): boolean {
-  return NATIVE.has(extensionOf(path));
-}
-
-/** True when we need to decode it ourselves. */
-export function needsManualDecode(path: string): boolean {
-  const ext = extensionOf(path);
-  return ext === 'aif' || ext === 'aiff' || ext === 'aifc';
-}

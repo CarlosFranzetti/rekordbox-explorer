@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { decodeAiff, needsManualDecode, extensionOf } from '@/lib/audio/aiff';
+import { decodeAiff, isAiff, type DecodedAudio } from '@/lib/audio/aiff';
+import { decodeWav, isWav } from '@/lib/audio/wav';
+import { formatFor, unsupportedMessage } from '@/lib/audio/formats';
 import type { Track } from '@/types/rekordbox';
 
 /**
@@ -176,10 +178,31 @@ export function useAudition(root: FileSystemDirectoryHandle | null, queue: Track
           return;
         }
 
-        if (needsManualDecode(next.filePath)) {
-          // Chrome cannot decode AIFF, so do it ourselves.
+        const format = formatFor(next.filePath);
+
+        if (format.playback === 'unsupported') {
+          setError(unsupportedMessage(format));
+          setLoading(false);
+          setPlaying(false);
+          return;
+        }
+
+        if (format.playback === 'decode') {
+          // The browser said no. Decode it ourselves — sniffing the container
+          // rather than trusting the extension, because a mislabelled file is
+          // common and the bytes are authoritative.
           const bytes = new Uint8Array(await file.arrayBuffer());
-          const decoded = decodeAiff(bytes);
+          let decoded: DecodedAudio;
+          if (isAiff(bytes)) decoded = decodeAiff(bytes);
+          else if (isWav(bytes)) decoded = decodeWav(bytes);
+          else {
+            setError(
+              `This ${format.label} file could not be read. Its contents do not match its name.`
+            );
+            setLoading(false);
+            setPlaying(false);
+            return;
+          }
           const ctx =
             ctxRef.current ??
             new (window.AudioContext ||
@@ -213,12 +236,40 @@ export function useAudition(root: FileSystemDirectoryHandle | null, queue: Track
         audio.ontimeupdate = () => setPosition(audio.currentTime);
         audio.onended = () => setPlaying(false);
         audio.onerror = () => {
-          setError(
-            `This browser cannot play ${extensionOf(next.filePath).toUpperCase() || 'this format'}. ` +
-              'The file itself is fine.'
-          );
-          setPlaying(false);
-          setLoading(false);
+          // Native playback was advertised and still failed — an unusual
+          // variant of a format the browser nominally supports, such as a
+          // 32-bit float WAV. Fall back to decoding rather than giving up.
+          void (async () => {
+            try {
+              const bytes = new Uint8Array(await file.arrayBuffer());
+              if (!isAiff(bytes) && !isWav(bytes)) throw new Error('no decoder');
+              const decoded = isAiff(bytes) ? decodeAiff(bytes) : decodeWav(bytes);
+              const ctx =
+                ctxRef.current ??
+                new (window.AudioContext ||
+                  (window as unknown as { webkitAudioContext: typeof AudioContext })
+                    .webkitAudioContext)();
+              ctxRef.current = ctx;
+              if (ctx.state === 'suspended') await ctx.resume();
+              const buffer = ctx.createBuffer(
+                decoded.channels.length,
+                decoded.frames,
+                decoded.sampleRate
+              );
+              for (let c = 0; c < decoded.channels.length; c++) {
+                buffer.getChannelData(c).set(decoded.channels[c]);
+              }
+              bufferRef.current = buffer;
+              setDuration(buffer.duration);
+              setError(null);
+              setLoading(false);
+              startBufferAt(0);
+            } catch {
+              setError(unsupportedMessage(format));
+              setPlaying(false);
+              setLoading(false);
+            }
+          })();
         };
         await audio.play();
         setPlaying(true);
