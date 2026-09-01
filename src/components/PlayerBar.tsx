@@ -8,6 +8,13 @@ import type { AuditionState } from '@/hooks/useAudition';
  * Publishes its own measured height as `--player-h` so the track table can
  * reserve space rather than hiding its last rows under the bar — the bar's
  * height changes when an error line appears, so a constant would be wrong.
+ *
+ * The **surface** spans the viewport so it reads as a bar, but its **contents**
+ * are capped and centred. Left full-width on a wide monitor the seek control
+ * stretched past 2000px, where one pixel is a fifth of a second: visually it
+ * dominated the layout, and the precision was far beyond anything a person aims
+ * for when scrubbing. Below the cap — phones, narrow windows — the constraint
+ * does nothing and the bar fills the width as before.
  */
 
 function clock(seconds: number): string {
@@ -75,7 +82,7 @@ export function PlayerBar({
       ref={barRef}
       className="player-live fixed inset-x-0 bottom-0 z-50 border-t-2 border-primary/70 bg-background/95 pb-safe backdrop-blur-lg"
     >
-      <div className="flex items-center gap-2 px-3 pt-2">
+      <div className="mx-auto flex w-full max-w-3xl items-center gap-2 px-3 pt-2">
         <span className="w-10 shrink-0 text-right text-[0.625rem] tabular-nums text-muted-foreground">
           {clock(shown)}
         </span>
@@ -104,7 +111,7 @@ export function PlayerBar({
         </span>
       </div>
 
-      <div className="flex items-center gap-1 px-2 pb-2">
+      <div className="mx-auto flex w-full max-w-3xl items-center gap-1 px-2 pb-2">
         <button onClick={onPrevious} disabled={!hasPrevious} aria-label="Previous track" className={control}>
           <SkipBack className="h-4 w-4" />
         </button>
