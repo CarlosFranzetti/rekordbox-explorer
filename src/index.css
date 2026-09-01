@@ -199,3 +199,81 @@
     @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Audition player
+   --------------------------------------------------------------------------- */
+
+/* PlayerBar publishes its measured height here so the track table can reserve
+   space. Its height changes when an error line appears, so a constant is wrong. */
+:root {
+  --player-h: 0px;
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* A primary-coloured top edge rather than the hairline every other surface
+   uses. The bar is the one live thing on screen and should not read as chrome. */
+.player-live {
+  box-shadow: 0 -4px 16px hsl(var(--primary) / 0.18);
+}
+
+/* The native range input is unusable at this size: a hairline track and a
+   system thumb that ignores the theme. The element stays 20px tall for the
+   touch target while the visible track is drawn at 3px, and the played portion
+   is a gradient stop driven by --progress, so no second element is needed. */
+.player-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+.player-range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    hsl(var(--primary)) var(--progress, 0%),
+    hsl(var(--muted)) var(--progress, 0%)
+  );
+}
+.player-range::-moz-range-track {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    hsl(var(--primary)) var(--progress, 0%),
+    hsl(var(--muted)) var(--progress, 0%)
+  );
+}
+.player-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4.5px; /* centres a 12px thumb on a 3px track */
+  border: none;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+}
+.player-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+}
+/* No duration yet means the bar reads as a progress indicator rather than a
+   control that ignores you. */
+.player-range:disabled {
+  cursor: default;
+}
+.player-range:disabled::-webkit-slider-thumb {
+  opacity: 0;
+}
+.player-range:disabled::-moz-range-thumb {
+  opacity: 0;
+}
