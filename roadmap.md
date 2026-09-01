@@ -5,7 +5,7 @@ Every item says **which branch it belongs on**. Two branches are live:
 | Branch | What it is | Deploys? |
 |---|---|---|
 | **`main`** | The stable **viewer** + current icon set. What production serves. | Production — builds automatically, **needs a manual promote** (see `memorystate.md` §1) |
-| **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 155 tests. | Preview — auto-deploys to `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` |
+| **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 252 tests. | Preview — auto-deploys to `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` |
 
 A third remote branch, `claude/rekordbox-playlist-export-7wndye`, is stale and superseded
 by these two. It can be deleted.

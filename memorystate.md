@@ -558,7 +558,9 @@ user can supply the actual console error, most of this list collapses to one ite
   injection — `failWritesMatching`, `corruptWritesMatching`, `failMkdirMatching`. This is
   how "the drive corrupts a write mid-commit" became a unit test.
 
-155 tests across 7 suites. **Their blind spot: they only ever see files we generated.**
+252 tests across 16 suites. **Their blind spot: they only ever see files we generated.**
+That is why the recovery and audio suites matter — they reproduce failure shapes
+taken from a real casualty rather than shapes our own writers produce.
 
 ---
 

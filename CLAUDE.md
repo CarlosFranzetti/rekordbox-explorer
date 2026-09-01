@@ -10,7 +10,7 @@ Two branches, and **which one you are on changes everything**:
 | Branch | Contents | Deployed |
 |---|---|---|
 | **`main`** (this one) | The stable **viewer**. `src/lib/rekordbox-parser.ts` + components. | ✅ Yes |
-| **`for-later`** | The **editor** release: `lib/pdb/`, `lib/usb/`, `lib/export/`, playlist editor, backups, device registry, 155 tests. | ⏸️ Rolled back |
+| **`for-later`** | The **editor** release: `lib/pdb/`, `lib/usb/`, `lib/export/`, playlist editor, backups, device registry, recovery, the audition player, 252 tests. | ⏸️ Rolled back |
 
 The editor was deployed and rolled back after production issues that were never
 diagnosed. Do not re-land it without working through P0 in `roadmap.md`.

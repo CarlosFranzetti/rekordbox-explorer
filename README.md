@@ -97,7 +97,7 @@ Two branches, on purpose:
 | Branch | What | Status |
 |---|---|---|
 | **`main`** | The **viewer** described above | ✅ Live |
-| **`for-later`** | The **playlist editor**: create/edit playlists and write them back to the USB, with dual verified on-drive backups, a verified write pipeline with automatic rollback, a cross-drive device registry, six export formats, and 155 tests | ⏸️ Built, then rolled back from production. Parked pending diagnosis. |
+| **`for-later`** | The **playlist editor**: create/edit playlists and write them back to the USB, with dual verified on-drive backups, a verified write pipeline with automatic rollback, a cross-drive device registry, six export formats, and 252 tests | ⏸️ Built, then rolled back from production. Parked pending diagnosis. |
 
 The editor release was merged, deployed, and rolled back after issues in production. The
 work is intact on `for-later`; nothing was lost. What is known, what is suspected, and
