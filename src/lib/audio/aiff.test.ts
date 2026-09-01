@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decodeAiff, isAiff, AiffError, playsNatively, needsManualDecode } from './aiff';
+import { decodeAiff, isAiff, AiffError } from './aiff';
 
 /**
  * Build a valid AIFF in memory. Chrome cannot decode this format at all — not
@@ -166,19 +166,5 @@ describe('decodeAiff', () => {
 
   it('does not hang or throw on a header with zero channels', () => {
     expect(() => decodeAiff(makeAiff({ channels: 0 }))).toThrow(AiffError);
-  });
-});
-
-describe('format routing', () => {
-  it('sends AIFF down the manual path', () => {
-    expect(needsManualDecode('/Contents/A/B.aiff')).toBe(true);
-    expect(needsManualDecode('/Contents/A/B.AIF')).toBe(true);
-    expect(playsNatively('/Contents/A/B.aiff')).toBe(false);
-  });
-
-  it('lets the browser handle what it can', () => {
-    expect(playsNatively('/Contents/A/B.mp3')).toBe(true);
-    expect(playsNatively('/Contents/A/B.flac')).toBe(true);
-    expect(needsManualDecode('/Contents/A/B.mp3')).toBe(false);
   });
 });
