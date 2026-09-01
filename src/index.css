@@ -199,7 +199,6 @@
     @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 }
-
 /* ---------------------------------------------------------------------------
    Audition player
    --------------------------------------------------------------------------- */
@@ -212,6 +211,18 @@
 
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* The player floats clear of the viewport edges so its border is visible on all
+   four sides. On a phone it also has to clear the home indicator, hence the
+   safe-area term rather than a flat offset. */
+.player-inset {
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 640px) {
+  .player-inset {
+    bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
 }
 
 /* A primary-coloured top edge rather than the hairline every other surface
@@ -227,12 +238,12 @@
 .player-range {
   -webkit-appearance: none;
   appearance: none;
-  height: 20px;
+  height: 26px;
   background: transparent;
   cursor: pointer;
 }
 .player-range::-webkit-slider-runnable-track {
-  height: 3px;
+  height: 7px;
   border-radius: 999px;
   background: linear-gradient(
     to right,
@@ -241,7 +252,7 @@
   );
 }
 .player-range::-moz-range-track {
-  height: 3px;
+  height: 7px;
   border-radius: 999px;
   background: linear-gradient(
     to right,
@@ -249,22 +260,38 @@
     hsl(var(--muted)) var(--progress, 0%)
   );
 }
+/* The handle is deliberately larger than the track and ringed in the bar's own
+   background colour. On a 7px track a flush thumb reads as a bulge in the fill
+   rather than a grab handle; the ring separates it so the thing you drag is
+   obvious, and the drop shadow keeps it visible over the played portion, which
+   is the same colour as the thumb. */
 .player-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
-  margin-top: -4.5px; /* centres a 12px thumb on a 3px track */
+  width: 18px;
+  height: 18px;
+  margin-top: -5.5px; /* centres an 18px thumb on a 7px track */
   border: none;
   border-radius: 999px;
   background: hsl(var(--primary));
+  box-shadow:
+    0 0 0 3px hsl(var(--background)),
+    0 1px 4px hsl(0 0% 0% / 0.55);
+  transition: transform 0.1s ease;
+}
+.player-range:hover::-webkit-slider-thumb,
+.player-range:active::-webkit-slider-thumb {
+  transform: scale(1.15);
 }
 .player-range::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 18px;
+  height: 18px;
   border: none;
   border-radius: 999px;
   background: hsl(var(--primary));
+  box-shadow:
+    0 0 0 3px hsl(var(--background)),
+    0 1px 4px hsl(0 0% 0% / 0.55);
 }
 /* No duration yet means the bar reads as a progress indicator rather than a
    control that ignores you. */
