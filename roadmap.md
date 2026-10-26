@@ -5,7 +5,7 @@ Every item says **which branch it belongs on**. Two branches are live:
 | Branch | What it is | Deploys? |
 |---|---|---|
 | **`main`** | The stable **viewer** + current icon set. What production serves. | Production — builds and promotes automatically (the old Instant-Rollback pin is lifted; see `memorystate.md` §1) |
-| **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 252 tests. | Preview — auto-deploys to `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` |
+| **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 253 tests. | Preview — auto-deploys to `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` |
 
 Two other remote branches are dead weight: `claude/rekordbox-playlist-export-7wndye`
 (stale, superseded by these two) and `zz-delete-probe` (created to diagnose the deletion
@@ -77,7 +77,9 @@ Nothing re-lands until these are done.
 | ~~**Lazy-load `jspdf`** — eager top-level import, ~400 KB in the main chunk for a feature most sessions never use~~ — done 2026-10-26: main chunk 911 KB → 491 KB; jsPDF and autotable load on the first export | `main` |
 | ~~Scaffold bloat on `main`: 42 dead modules, 35 unused packages, the scaffold's component-tagger plugin~~ — done 2026-08-14 | `main` |
 | Correct the Rescue-tab promise in `recovery-note.ts:115` — the on-drive note describes a drive-scan feature the tab does not implement | `for-later` |
-| ~~Dead `rating > 255` check on a `getUint8` — impossible condition posing as validation~~ — done 2026-10-26: removed, not replaced; reasoning in `memorystate.md` §2 | `main` |
+| ~~Dead `rating > 255` check on a `getUint8` — impossible condition posing as validation~~ — done 2026-10-26: removed, not replaced; reasoning in `memorystate.md` §2. `for-later` never had it. | done 2026-10-26 |
+| **Year and Label headers do not sort on `main`** — both are clickable `SortColumn`s with no case in the comparator, so the arrow moves and the rows do not. `for-later`'s comparator handles both. Found 2026-10-26. | `main` |
+| **Recovered XML may carry the wrong star rating** — `recovery/xml.ts` writes `Track.rating` verbatim into the XML `Rating=` attribute. The PDB stores 0/51/102/153/204/255 while OneLibrary stores 0-5, so one source imports at roughly zero stars. Unverified against rekordbox. | both |
 | ~~`tsconfig.*.tsbuildinfo` still tracked~~ — done 2026-08-14 | `main` |
 | ~~`console.log` per album row in the parser~~ — done 2026-08-14 | `main` |
 | ~~`package.json` still carried the original scaffold's name/version, no `license`/`repository`~~ — done 2026-08-14 | `main` |
