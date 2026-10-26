@@ -7,7 +7,9 @@
 Copied verbatim from **[v1vendi/onelibrary](https://github.com/v1vendi/onelibrary)**,
 `viewer/src/`, at commit `a31baa5`. Copyright © 2026 v1vendi, MIT licence.
 
-Three files, ~750 lines, no dependencies:
+Three files on `for-later`, ~750 lines, no dependencies. **`main` vendors only the first
+two** — it reads OneLibrary but does not write it, so `sqlite-write.js` is not shipped
+there:
 
 | File | What it does |
 |---|---|

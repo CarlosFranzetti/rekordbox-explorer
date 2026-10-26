@@ -3,9 +3,10 @@
 **Status:** viewer live on `main`; editor built and parked on `for-later` after a
 production rollback · **Owner:** Carlos Franzetti
 
-> Everything under "Shipped (v0.3)" below is **built and tested but not currently
-> deployed** — it lives on `for-later`. Production serves the viewer. See
-> `memorystate.md`.
+> **Not all of the list below is parked.** Reading, browsing, auditioning, the drive
+> compatibility check and USB recovery are **live on `main`** and in production. What is
+> built-but-not-deployed is the *editor* half — editing, writing, backups, the device
+> registry and the export formats — which lives on `for-later`. See `memorystate.md`.
 
 ---
 
@@ -102,7 +103,8 @@ Current state is snapshotted first, so the restore is undoable.
 **Audition a track** → double-click a row (single tap on a phone) → it plays from the
 stick. Skip forward and back follow the sort and filter currently on screen.
 
-**Rescue a drive that will not load** → open drive → *Attempt USB recovery* → every
+**Rescue a drive that will not load** → open drive → *Recovery* in the sidebar footer →
+*Attempt USB recovery* → every
 library on the stick is assessed and scored → the healthiest is rebuilt as rekordbox XML
 → import that into rekordbox and re-export the drive. Nothing is written to the stick.
 

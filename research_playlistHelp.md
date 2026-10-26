@@ -7,6 +7,12 @@ real rekordbox USB, and what breaks?* Written up so nobody has to re-derive it.
 possible writes to that format. "Works on all players" is not achievable this way, and the
 corruption risk is real but bounded and mitigable.**
 
+> **Branch note.** The `src/lib/pdb/`, `src/lib/usb/` and `src/lib/export/` paths cited
+> throughout this document exist on **`for-later`** only — that is where the writer lives.
+> On `main` the equivalent read-side code is `src/lib/rekordbox-parser.ts`, and the
+> rekordbox XML emitter is `src/lib/recovery/xml.ts`. The *format* facts below are true
+> regardless of branch; only the file paths are branch-specific.
+
 ---
 
 ## 1. The format

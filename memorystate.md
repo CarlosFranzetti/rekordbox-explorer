@@ -66,7 +66,7 @@ Verified 2026-09-01 against the Vercel API and by fetching both URLs. Project
 | **Production** | `main` | `rekordbox-explorer.vercel.app` | ✅ auto-builds **and promotes**; serving current `main` |
 | **Preview** | `for-later` | `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` | ✅ auto-builds, `READY`, `noindex` |
 
-Three git branches exist on the remote:
+Four git branches exist on the remote:
 
 | Branch | Role |
 |---|---|
@@ -252,6 +252,15 @@ generic mobile pattern optimises for content-first reading, which this is not.
 Pinned by `src/components/LibraryView.mobile.test.tsx`, which asserts at 390px
 that playlists render, no hamburger exists, and the column count matches desktop.
 Do not "optimise mobile" past those tests without asking.
+
+**⚠️ This was only ever half-true of `main`, and it took until 2026-10-26 to notice.**
+`main` got the panel layout — no hamburger, playlists always visible — but never the
+column half: it still carried a `MOBILE_COLUMNS` array that swapped in Title/Artist/Album
+below the mobile breakpoint, and it never had the pinning test. So the branch *in
+production* collapsed to three columns on a phone while this section claimed otherwise.
+Found by rendering the preview at 390px and reading the actual `<th>` list rather than
+trusting the prose. The lesson generalises: a doc asserting a test pins a decision is
+worth nothing until you check the test exists on the branch you are standing on.
 
 ---
 
@@ -519,7 +528,7 @@ user can supply the actual console error, most of this list collapses to one ite
 | **Manifest never trusted for listing** | A corrupt `manifest.json` is exactly when listing must still work | No |
 | **4-byte row alignment** | Format targeted 16-bit hardware; costs bytes, removes a risk class | Yes |
 | **Sample `page_flags` from existing pages** | Both `0x24` and `0x34` occur; mimic what rekordbox did on *this* drive | Yes |
-| **Don't write Device Library Plus** | Key known, schema not, no working precedent, AlphaTheta can rotate it | Revisit if schema is documented |
+| ~~**Don't write Device Library Plus**~~ | **Reversed 2026-08-27.** The schema is documented, SQLCipher needed no WASM, and a tested writer exists — see §1d. | Done; writing is built, pipeline wiring is roadmap P7 |
 | **Pick `mode:'read'`, upgrade on demand** | Read-only visitors should never see a write prompt | Yes |
 | **IndexedDB for the device registry** | 10 libraries × 5k tracks blows localStorage's 5 MB | Yes |
 | **Dropped `@tanstack/react-query`** | Zero `useQuery` calls existed. No network to fetch from | Yes |

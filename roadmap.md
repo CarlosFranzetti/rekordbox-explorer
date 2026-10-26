@@ -70,7 +70,8 @@ Nothing re-lands until these are done.
 | Deployment Protection — resolved, no action needed: production domain is public, all previews and branch aliases are SSO-gated and `noindex`. See `memorystate.md` §1b. | *Vercel setting* |
 | Bundle: `main`'s main chunk is 863 KB (280 KB gzipped), `for-later`'s is ~560 KB — code-split the dialogs | both |
 | Web Worker for parsing (large libraries block the main thread) | `for-later` |
-| ~~Mobile layout is broken on `main`~~ — **not a bug.** The `Sheet` drawer on `for-later` was the regression and has been reverted: playlists and the full column set are visible on a phone, same layout as desktop. Pinned by `LibraryView.mobile.test.tsx`. | done 2026-08-27 |
+| ~~Mobile layout is broken on `main`~~ — **not a bug.** The `Sheet` drawer on `for-later` was the regression and has been reverted: playlists and the full column set are visible on a phone, same layout as desktop. Pinned by `LibraryView.mobile.test.tsx` — **on `for-later`**. | done 2026-08-27 |
+| **`main` never got the column half of that decision** — it kept a `MOBILE_COLUMNS` array collapsing a phone to Title/Artist/Album, and has no pinning test. Caught 2026-10-26 by rendering at 390px. | `main` |
 | **No musical Key column** — `Track.key` is parsed and carried but `DESKTOP_COLUMNS` never shows it. Harmonic mixing is a core reason to check a library on a phone. | both |
 | Accessibility fixes (currently only on `for-later`) | consider backporting to `main` |
 | **Lazy-load `jspdf`** — still an eager top-level import, ~400 KB in the main chunk for a feature most sessions never use. `for-later` already uses a dynamic `import('jspdf')`. | `main` |
@@ -133,15 +134,15 @@ false on every real drive, and OneLibrary-only sticks were reported as "partial"
 
 The format AlphaTheta shipped in October 2025 for CDJ-3000X, XDJ-AZ, OPUS-QUAD,
 OMNIS-DUO and CDJ-3000 fw 3.15+. **Reading and playlist writing both work**, in the
-browser, with no WASM and no server — see `database.md` §OneLibrary.
+browser, with no WASM and no server — see `database.md` §3 and §4.
 
 - [x] SQLCipher 4 decrypt/encrypt via WebCrypto (`src/lib/onelibrary/sqlcipher.js`)
 - [x] Read `content` / `playlist` / `playlist_content` into the app's model
 - [x] Create, replace and delete playlists, verified in memory before any write
 - [x] 18 tests against a real encrypted export
-- [ ] **Wire the reader into `useRekordbox`** so a OneLibrary-only drive stops
-      reporting as unreadable. Currently the library layer exists but the load
-      path still only looks for `export.pdb`.
+- [x] **Wire the reader into `useRekordbox`** — done and shipped on both branches.
+      `useRekordbox` imports `readOneLibraryFromDrive` and loads a OneLibrary-only
+      drive. Three docs went on claiming this was pending long after it landed.
 - [ ] **Route OneLibrary writes through `commitPlaylists`** so they get the same
       backup gate, verify and rollback the PDB path has. The writer is ready and
       returns a verified image; only the pipeline wiring is missing.
@@ -155,7 +156,8 @@ browser, with no WASM and no server — see `database.md` §OneLibrary.
 
 Built against a real casualty and verified against it: 52 playlists, 721 tracks
 and 1,391 entries recovered from a drive whose rekordbox databases were 93-96%
-unwritten. Full write-up in `memorystate.md` §1f.
+unwritten — 96% for `export.pdb`, 93% for `exportLibrary.db`, 76% for the
+smaller `exportExt.pdb`. Full write-up in `memorystate.md` §1f.
 
 - [x] Health assessment for PDB and SQLite: header-vs-size truncation, all-zero
       page census, and the *unwritten vs damaged* distinction that decides the advice
@@ -227,8 +229,8 @@ apply to. Full explanation and reasoning in `docs/OPEN-SOURCE.md`.
 - [ ] Repo topics (`docs/TOPICS.md`) — *repo setting*
 - [ ] Social preview image upload — *repo setting*
 - [ ] `CODE_OF_CONDUCT.md` (GitHub generates the Contributor Covenant for you)
-- [ ] Credit the reverse-engineering prior art in the README, not just in
-      `research_playlistHelp.md` — Deep Symmetry's crate-digger, @henrybetts, @flesniak
+- [x] ~~Credit the reverse-engineering prior art in the README~~ — done; the README's
+      Credits section names Deep Symmetry's crate-digger, @henrybetts and @flesniak
 - [ ] Tag `v0.2.0` and cut a GitHub Release
 
 ---

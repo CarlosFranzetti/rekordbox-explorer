@@ -105,8 +105,10 @@ installation, not machine- or licence-bound, and it protects a file the user alr
 on hardware they already own. Reading your own library is the defensible case; that is
 the line this project stays on.
 
-**State: done.** `src/lib/onelibrary/`, 18 tests against a real encrypted export.
-Not yet wired into the app's load path — roadmap P7.
+**State: done.** `src/lib/onelibrary/`, 10 reader tests on `main` against a real encrypted export, 18 on `for-later` once the writer suite is counted.
+Wired into the app's load path on both branches: `useRekordbox` calls
+`readOneLibraryFromDrive`, so a OneLibrary-only drive loads. **Writing** is the part still
+unwired — roadmap P7.
 
 ---
 

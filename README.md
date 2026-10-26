@@ -78,8 +78,9 @@ wrong is silence.
 
 ## When a drive dies
 
-Pull a stick without ejecting and rekordbox's databases can stop mid-write. **Settings →
-Attempt USB recovery** looks for a library that survived — a stick usually carries several,
+Pull a stick without ejecting and rekordbox's databases can stop mid-write. The
+**Recovery** button in the sidebar footer, beside Settings, opens **Attempt USB recovery**,
+which looks for a library that survived — a stick usually carries several,
 written at different times, and only the one that was open is damaged. It checks the legacy
 `export.pdb`, OneLibrary, journals and `-wal` files, and an Engine DJ library if the drive
 has one.

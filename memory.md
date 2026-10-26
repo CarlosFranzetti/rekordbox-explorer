@@ -33,8 +33,15 @@ missing console error is still the largest unknown in the project, and it is why
 is parked rather than shipped. `memorystate.md` §2 ranks the suspects.
 
 Everything built since the rollback has been landed on **both** branches, so `for-later`
-never drifts into a stale fork. The shared files are kept byte-identical on purpose — it
-makes the periodic sync a `diff` rather than a merge.
+never drifts into a stale fork. The **documentation** is kept byte-identical on purpose —
+it makes the periodic sync a `diff` rather than a merge.
+
+The **code** is deliberately not identical: `for-later` is a superset. That gap is a live
+hazard, and it has bitten twice. A shared doc that describes the code describes *one*
+branch's code, and on 2026-10-26 an audit found `SECURITY.md` and `PRIVACY.md` on `main`
+documenting a parser, an export pipeline, a device registry and a write-permission prompt
+that only exist on `for-later` — including a CSP claim that was false for `main`. **Any
+claim in a shared doc that differs by branch must say which branch it means.**
 
 **The branch rule:** write path, editor, backups, device registry → `for-later`. Low-risk
 viewer work and docs → `main`.
