@@ -112,6 +112,16 @@ describe('LibraryView on a phone-sized viewport', () => {
     expect(head.getByText('Duration')).toBeInTheDocument();
   });
 
+  it('shows the musical Key on a phone, which is the whole point of having it', () => {
+    // Harmonic mixing is the reason the column exists, and a phone is where you
+    // check it — in a booth, away from the laptop. A reduced mobile column set
+    // would hide it on exactly the device it is for.
+    const { container } = render(<LibraryView {...props} />);
+    const head = within(container.querySelector('thead') as HTMLElement);
+    expect(head.getByText('Key')).toBeInTheDocument();
+    expect(screen.getAllByText('8A').length).toBeGreaterThan(0);
+  });
+
   it('renders the same columns on a phone as on a desktop', () => {
     const { container } = render(<LibraryView {...props} />);
     const mobileHeaders = container.querySelectorAll('thead th').length;

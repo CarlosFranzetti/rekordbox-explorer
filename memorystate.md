@@ -21,7 +21,7 @@ when something here looks arbitrary and you want to know why.
 | **`for-later`** | The full playlist-**editor** release, parked and unmerged, kept in step with every `main` feature above |
 | **PR #9** | Merged, then rolled back. History intact. |
 
-Both branches build clean and pass their suites — `main` 85 tests, `for-later` 252.
+Both branches build clean and pass their suites — `main` 107 tests, `for-later` 253.
 Everything added since the rollback is now live.
 
 ### How we got here
@@ -256,11 +256,18 @@ Do not "optimise mobile" past those tests without asking.
 **⚠️ This was only ever half-true of `main`, and it took until 2026-10-26 to notice.**
 `main` got the panel layout — no hamburger, playlists always visible — but never the
 column half: it still carried a `MOBILE_COLUMNS` array that swapped in Title/Artist/Album
-below the mobile breakpoint, and it never had the pinning test. So the branch *in
-production* collapsed to three columns on a phone while this section claimed otherwise.
-Found by rendering the preview at 390px and reading the actual `<th>` list rather than
-trusting the prose. The lesson generalises: a doc asserting a test pins a decision is
-worth nothing until you check the test exists on the branch you are standing on.
+below 768px, and it never had the pinning test. So the branch *in production* collapsed to
+three columns on a phone while this section claimed otherwise. Found by rendering the
+preview at 390px and reading the actual `<th>` list rather than trusting the prose.
+
+**Fixed the same day.** `MOBILE_COLUMNS` and the flexible-width path are gone; one column
+set at every width, `table-fixed`, scrolling sideways. The test was ported across — on
+`main` it runs on `src/test/render.tsx` rather than `@testing-library/react`, which `main`
+does not depend on. Measured in headless Chromium at 390px: 3 columns before, 9 after
+(Key included).
+
+The lesson generalises past this one bug: **a doc asserting that a test pins a decision is
+worth nothing until you check the test exists on the branch you are standing on.**
 
 ---
 
@@ -490,14 +497,19 @@ console error or a real `export.pdb`.
 - **`console.log` per album on `main`** (`rekordbox-parser.ts:647`) — violated this repo's
   own rule, fired once per album row on every load. **Fixed 2026-08-14.**
 - **Dead `rating > 255` check** on a `getUint8` — impossible condition dressed as a
-  validation. Harmless, misleading.
+  validation. **Removed 2026-10-26**, not replaced with a range check: the byte is only
+  copied through, a failing check drops the whole track, and the scale is unsettled — the
+  old comment said 0-5, while `database.md` and the OneLibrary reader say the PDB uses
+  0/51/…/255, under which a `> 5` check would silently drop every rated track. No UI shows
+  or sorts by `Track.rating`; where the scale does matter is `recovery/xml.ts`, which writes
+  it verbatim into the XML `Rating=`. Open: read one rated track from a real `export.pdb`.
 - **`main` carried the original scaffold's bloat** — **cleared 2026-08-14.** 42 dead
   modules deleted (`NavLink.tsx`, 39 unreferenced shadcn components and variant files,
   two orphan hooks) and 35 unused packages removed, including `@tanstack/react-query`
   (imported in `App.tsx` with zero `useQuery` calls anywhere) and the scaffold's
   component-tagger Vite plugin. Verified by transitive reachability from `main.tsx` plus the test entry
-  points, not by grep. The eager top-level `jspdf` import (~400 KB) is still there — see
-  the roadmap.
+  points, not by grep. The eager top-level `jspdf` import (~400 KB) was lazy-loaded
+  2026-10-26: the main chunk went 911 KB → 491 KB.
 
 ### Security audit — clean
 
@@ -569,6 +581,13 @@ user can supply the actual console error, most of this list collapses to one ite
 - **Vercel rollback pins the alias** — see §1.
 - **`main` is protected**; no force-pushes. Plan forward-only.
 - **All testing is synthetic.** No real `export.pdb`, no real CDJ. See §2.
+- **PDF export needs the network the first time it is used.** jsPDF is lazy-loaded, so a
+  DJ who opened the app at home and exports a setlist offline in the booth gets an error
+  where the eager bundle used to just work. Chrome also keeps a failed dynamic `import()`
+  for the life of the page (verified in Chromium: a retry after the network returned still
+  failed, a reload succeeded), so the failure toast says reload, not "try again". If that
+  trade is wrong, warm both chunks (`jspdf`, `jspdf-autotable`) once a library has loaded:
+  export then works offline and the ~400 KB still stays off first paint.
 
 ---
 
@@ -582,7 +601,7 @@ user can supply the actual console error, most of this list collapses to one ite
   injection — `failWritesMatching`, `corruptWritesMatching`, `failMkdirMatching`. This is
   how "the drive corrupts a write mid-commit" became a unit test.
 
-252 tests across 16 suites. **Their blind spot: they only ever see files we generated.**
+253 tests across 16 suites. **Their blind spot: they only ever see files we generated.**
 That is why the recovery and audio suites matter — they reproduce failure shapes
 taken from a real casualty rather than shapes our own writers produce.
 

@@ -37,6 +37,7 @@ const SCHEMES: { value: ColorScheme; label: string; icon: typeof Sun }[] = [
 const TABLE_COLUMNS = [
   { key: 'genre', label: 'Genre' },
   { key: 'bpm', label: 'BPM' },
+  { key: 'key', label: 'Key' },
   { key: 'duration', label: 'Duration' },
   { key: 'label', label: 'Label' },
   { key: 'year', label: 'Year' },

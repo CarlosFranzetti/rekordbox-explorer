@@ -407,6 +407,10 @@ export function useRekordbox() {
           return (a.duration - b.duration) * direction;
         case 'bpm':
           return (a.bpm - b.bpm) * direction;
+        case 'key':
+          // Numeric, so Camelot keys run 2A, 10A rather than 10A, 2A. The default
+          // branch below would compare them as plain strings.
+          return a.key.localeCompare(b.key, undefined, { numeric: true }) * direction;
         case 'year':
           return ((a.year ?? 0) - (b.year ?? 0)) * direction;
         case 'label':

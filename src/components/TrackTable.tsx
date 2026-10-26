@@ -35,6 +35,7 @@ const DESKTOP_COLUMNS: ColumnConfig[] = [
   { key: 'genre', label: 'Genre', defaultWidth: 140, minWidth: 100 },
   { key: 'duration', label: 'Duration', defaultWidth: 90, minWidth: 80 },
   { key: 'bpm', label: 'BPM', defaultWidth: 80, minWidth: 70 },
+  { key: 'key', label: 'Key', defaultWidth: 70, minWidth: 60 },
   { key: 'year', label: 'Year', defaultWidth: 60, minWidth: 50 },
   { key: 'label', label: 'Label', defaultWidth: 150, minWidth: 100 },
 ];
@@ -58,11 +59,24 @@ function getDefaultWidths(): Record<string, number> {
   );
 }
 
+// A column added after the order was saved is missing from it. Left that way it
+// sorts to the far end and, being unknown to handleDrop, can never be dragged
+// anywhere, so slot it in beside the column it follows by default.
+function withNewColumns(order: string[]): string[] {
+  const result = [...order];
+  DESKTOP_COLUMNS.forEach((col, i) => {
+    if (result.includes(col.key)) return;
+    const prev = DESKTOP_COLUMNS[i - 1];
+    result.splice(prev ? result.indexOf(prev.key) + 1 : 0, 0, col.key);
+  });
+  return result;
+}
+
 function getStoredColumnOrder(): string[] | null {
   try {
     const stored = localStorage.getItem(COLUMN_ORDER_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      return withNewColumns(JSON.parse(stored));
     }
   } catch {
     // ignore
@@ -90,7 +104,9 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenCo
 
   // Load widths from localStorage on mount, fallback to defaults
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(
-    () => getStoredWidths() ?? getDefaultWidths()
+    // Defaults sit underneath so a column added after the widths were saved
+    // still has one, instead of falling back to a guessed width on first resize.
+    () => ({ ...getDefaultWidths(), ...getStoredWidths() })
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -362,6 +378,16 @@ export function TrackTable({ tracks, sortColumn, sortDirection, onSort, hiddenCo
                         className={`tabular-nums text-muted-foreground ${mobileClass}`}
                       >
                         {formatBpm(track.bpm)}
+                      </TableCell>
+                    );
+                  case 'key':
+                    return (
+                      <TableCell
+                        key="key"
+                        style={cellStyle}
+                        className={`tabular-nums text-muted-foreground ${mobileClass}`}
+                      >
+                        {track.key || ''}
                       </TableCell>
                     );
                   default:
