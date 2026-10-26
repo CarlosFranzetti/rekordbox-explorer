@@ -15,9 +15,21 @@ codec service, and nothing is cached to disk.
 
 ## What is stored locally
 
+**On the live site (`rekordbox-explorer.vercel.app`)** the only thing stored is
+`localStorage`:
+
 | Where | What | How to clear |
 |---|---|---|
-| `localStorage` | Theme, text size, column layout, export and backup preferences | Settings → Reset all settings, or clear site data |
+| `localStorage` | Theme, text size, column layout | Clear site data in your browser |
+
+Nothing else. The live build uses no IndexedDB, writes nothing to your USB drive, and never
+asks for write access — it opens drives read-only and has no code that could write to one.
+
+**The editor build** (the `for-later` branch, not currently deployed to the live site) adds
+two more, because it can write playlists back to a stick:
+
+| Where | What | How to clear |
+|---|---|---|
 | `IndexedDB` | Device registry: drive names, track/playlist counts, and a title/artist/album index per drive, for cross-drive search | My drives → Clear all |
 | Your USB drive | Backup snapshots and `WHATTODOIFTHISWENTTOSHIT.txt` | Backups & recovery → delete, or remove the folders by hand |
 
@@ -37,9 +49,12 @@ To avoid it entirely: block it in your ad blocker, or run the app locally with
 
 ## Permissions
 
-The app asks for read access when you pick a drive. It asks separately for **write**
-access only when you first try to save a playlist or create a backup — declining leaves
-the drive untouched. Permission lasts for the session; the browser re-asks next time.
+The live site asks for **read** access only, when you pick a drive. It never asks for
+write access, because it has no code that writes to a drive.
+
+The editor build asks separately for **write** access the first time you save a playlist or
+create a backup — declining leaves the drive untouched. Permission lasts for the session;
+the browser re-asks next time.
 
 ## Reporting
 

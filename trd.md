@@ -155,11 +155,11 @@ is reported by name, with the note that the track still plays on a CDJ.
 
 Two fixtures do the heavy lifting:
 
-- **`test/fixtures/pdb-fixture.ts`** builds synthetic `.pdb` images. Written
+- **`src/test/fixtures/pdb-fixture.ts`** builds synthetic `.pdb` images. Written
   *independently* of the writer — it packs rows tightly where the writer 4-byte-aligns them
   — so round-trip tests cross-check two implementations rather than confirming the writer
   agrees with itself.
-- **`test/fixtures/memory-fs.ts`** is an in-memory File System Access API with **fault
+- **`src/test/fixtures/memory-fs.ts`** is an in-memory File System Access API with **fault
   injection**: `failWritesMatching`, `corruptWritesMatching`, `failMkdirMatching`. This is
   what makes "what happens when the drive starts failing mid-write" a unit test instead of
   a hope.

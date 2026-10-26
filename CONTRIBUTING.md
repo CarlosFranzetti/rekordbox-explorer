@@ -27,8 +27,10 @@ All three must pass. Tests are not optional for anything under `src/lib/`.
 ## The one rule that matters
 
 **Do not weaken the write-safety invariants.** They are listed in `CLAUDE.md` and enforced
-by tests in `src/lib/pdb/playlists.test.ts` and `src/lib/usb/commit.test.ts`. If your
-change makes one of those tests fail, the change is wrong — not the test.
+by tests in `src/lib/pdb/playlists.test.ts` and `src/lib/usb/commit.test.ts` — **both on
+`for-later`**, which is where the write path lives. `main` has no write path, so if you are
+on `main` this section does not apply to you. If your change makes one of those tests fail,
+the change is wrong — not the test.
 
 In particular:
 
@@ -40,19 +42,25 @@ In particular:
 ## Layering
 
 ```
-components/  →  hooks/  →  lib/usb/  →  lib/pdb/
+components/  →  hooks/  →  lib/usb/  →  lib/pdb/      (for-later)
+components/  →  hooks/  →  lib/recovery/ · lib/audio/  (main)
 ```
+
+`lib/usb/` and `lib/pdb/` exist on `for-later` only. On `main` the binary layer is
+`src/lib/rekordbox-parser.ts` plus `lib/audio/`, `lib/onelibrary/` and `lib/recovery/`.
 
 No React below `hooks/`. No `DataView` above `lib/`. Pure logic gets a colocated
 `*.test.ts`.
 
 ## Testing binary code
 
-Use `src/test/fixtures/pdb-fixture.ts` to build synthetic `.pdb` images. It is written
-independently of the writer on purpose — do not refactor it to share the writer's encoding.
+On **`for-later`**, use `src/test/fixtures/pdb-fixture.ts` to build synthetic `.pdb`
+images. It is written independently of the writer on purpose — do not refactor it to share
+the writer's encoding.
 
-Use `src/test/fixtures/memory-fs.ts` for anything touching a drive. It supports fault
-injection, so "the drive corrupted the write" is a unit test, not a hope.
+Also on `for-later`, use `src/test/fixtures/memory-fs.ts` for anything touching a drive. It
+supports fault injection, so "the drive corrupted the write" is a unit test, not a hope.
+Neither fixture exists on `main`.
 
 The audio decoders (`src/lib/audio/`) work the same way: `aiff.test.ts` and `wav.test.ts`
 build files in memory at each bit depth and variant. Chrome cannot decode AIFF at all, so
