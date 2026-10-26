@@ -21,7 +21,7 @@ when something here looks arbitrary and you want to know why.
 | **`for-later`** | The full playlist-**editor** release, parked and unmerged, kept in step with every `main` feature above |
 | **PR #9** | Merged, then rolled back. History intact. |
 
-Both branches build clean and pass their suites — `main` 85 tests, `for-later` 252.
+Both branches build clean and pass their suites — `main` 103 tests, `for-later` 252.
 Everything added since the rollback is now live.
 
 ### How we got here
@@ -256,11 +256,18 @@ Do not "optimise mobile" past those tests without asking.
 **⚠️ This was only ever half-true of `main`, and it took until 2026-10-26 to notice.**
 `main` got the panel layout — no hamburger, playlists always visible — but never the
 column half: it still carried a `MOBILE_COLUMNS` array that swapped in Title/Artist/Album
-below the mobile breakpoint, and it never had the pinning test. So the branch *in
-production* collapsed to three columns on a phone while this section claimed otherwise.
-Found by rendering the preview at 390px and reading the actual `<th>` list rather than
-trusting the prose. The lesson generalises: a doc asserting a test pins a decision is
-worth nothing until you check the test exists on the branch you are standing on.
+below 768px, and it never had the pinning test. So the branch *in production* collapsed to
+three columns on a phone while this section claimed otherwise. Found by rendering the
+preview at 390px and reading the actual `<th>` list rather than trusting the prose.
+
+**Fixed the same day.** `MOBILE_COLUMNS` and the flexible-width path are gone; one column
+set at every width, `table-fixed`, scrolling sideways. The test was ported across — on
+`main` it runs on `src/test/render.tsx` rather than `@testing-library/react`, which `main`
+does not depend on. Measured in headless Chromium at 390px: 3 columns before, 9 after
+(Key included).
+
+The lesson generalises past this one bug: **a doc asserting that a test pins a decision is
+worth nothing until you check the test exists on the branch you are standing on.**
 
 ---
 

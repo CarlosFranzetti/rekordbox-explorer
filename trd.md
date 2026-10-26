@@ -151,7 +151,7 @@ is reported by name, with the note that the track still plays on a CDJ.
 
 ## 7. Testing
 
-`npm test` — 252 tests on `for-later`, 85 on `main`. No network, no real filesystem.
+`npm test` — 252 tests on `for-later`, 103 on `main`. No network, no real filesystem.
 
 Two fixtures do the heavy lifting:
 

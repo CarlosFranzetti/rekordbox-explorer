@@ -13,6 +13,9 @@ import { PlayerBar } from '@/components/PlayerBar';
 import type { Track } from '@/types/rekordbox';
 import './index.css';
 
+// Camelot and note names, since a real export carries either, and one track that was never keyed.
+const keys = ['8A', '11B', '2A', '10A', 'Fm', '1B', 'F#m', 'Abm', '5A', ''];
+
 const make = (
   id: number,
   title: string,
@@ -31,7 +34,7 @@ const make = (
   genre,
   duration,
   bpm,
-  key: '',
+  key: keys[id - 1] ?? '',
   rating: 0,
   bitrate: 1411,
   filePath: `/Contents/${artist}/${album}/${artist} - ${title}.${ext}`,

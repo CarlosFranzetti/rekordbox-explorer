@@ -486,6 +486,10 @@ export function useRekordbox() {
         case 'bpm':
           comparison = a.bpm - b.bpm;
           break;
+        case 'key':
+          // Numeric, so Camelot keys run 2A, 10A rather than 10A, 2A.
+          comparison = a.key.localeCompare(b.key, undefined, { numeric: true });
+          break;
       }
       
       return sortDirection === 'asc' ? comparison : -comparison;
