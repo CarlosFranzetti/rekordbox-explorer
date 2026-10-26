@@ -497,7 +497,12 @@ console error or a real `export.pdb`.
 - **`console.log` per album on `main`** (`rekordbox-parser.ts:647`) — violated this repo's
   own rule, fired once per album row on every load. **Fixed 2026-08-14.**
 - **Dead `rating > 255` check** on a `getUint8` — impossible condition dressed as a
-  validation. Harmless, misleading.
+  validation. **Removed 2026-10-26**, not replaced with a range check: the byte is only
+  copied through, a failing check drops the whole track, and the scale is unsettled — the
+  old comment said 0-5, while `database.md` and the OneLibrary reader say the PDB uses
+  0/51/…/255, under which a `> 5` check would silently drop every rated track. No UI shows
+  or sorts by `Track.rating`; where the scale does matter is `recovery/xml.ts`, which writes
+  it verbatim into the XML `Rating=`. Open: read one rated track from a real `export.pdb`.
 - **`main` carried the original scaffold's bloat** — **cleared 2026-08-14.** 42 dead
   modules deleted (`NavLink.tsx`, 39 unreferenced shadcn components and variant files,
   two orphan hooks) and 35 unused packages removed, including `@tanstack/react-query`

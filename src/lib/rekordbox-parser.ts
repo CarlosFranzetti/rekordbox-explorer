@@ -860,12 +860,6 @@ function parseTrackRow(
     return;
   }
   
-  // Security: Validate rating (0-5 range typical for Rekordbox, getUint8 always >= 0)
-  if (rating > 255) {
-    console.error(`parseTrackRow: invalid rating ${rating} for track ${id}`);
-    return;
-  }
-  
   // Security: Validate bitrate is reasonable (0-10000 kbps, getUint32 always >= 0)
   if (bitrate > 10000) {
     console.error(`parseTrackRow: invalid bitrate ${bitrate} for track ${id}`);

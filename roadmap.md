@@ -77,7 +77,7 @@ Nothing re-lands until these are done.
 | ~~**Lazy-load `jspdf`** — eager top-level import, ~400 KB in the main chunk for a feature most sessions never use~~ — done 2026-10-26: main chunk 911 KB → 491 KB; jsPDF and autotable load on the first export | `main` |
 | ~~Scaffold bloat on `main`: 42 dead modules, 35 unused packages, the scaffold's component-tagger plugin~~ — done 2026-08-14 | `main` |
 | Correct the Rescue-tab promise in `recovery-note.ts:115` — the on-drive note describes a drive-scan feature the tab does not implement | `for-later` |
-| Dead `rating > 255` check on a `getUint8` — impossible condition posing as validation | `main` |
+| ~~Dead `rating > 255` check on a `getUint8` — impossible condition posing as validation~~ — done 2026-10-26: removed, not replaced; reasoning in `memorystate.md` §2 | `main` |
 | ~~`tsconfig.*.tsbuildinfo` still tracked~~ — done 2026-08-14 | `main` |
 | ~~`console.log` per album row in the parser~~ — done 2026-08-14 | `main` |
 | ~~`package.json` still carried the original scaffold's name/version, no `license`/`repository`~~ — done 2026-08-14 | `main` |
