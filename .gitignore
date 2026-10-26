@@ -40,3 +40,7 @@ dist-ssr
 
 .gemini/
 gha-creds-*.json
+
+# Agent scratch space. `.claude/worktrees/` holds full checkouts of this repo —
+# committing it would duplicate the entire tree.
+.claude/

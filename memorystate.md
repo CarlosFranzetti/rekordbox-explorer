@@ -3,7 +3,12 @@
 Everything a cold reader — human or agent — needs to pick this project up without
 re-deriving it. **Read this first.**
 
-**Updated:** 2026-09-01 · **Live version:** 0.2.x (viewer) · **Parked version:** 0.3.0 (editor)
+This file is the *curated* record: edited, tight, the version you cite. The raw context
+behind it — what was tried before it worked, the exact failure shape of the drive that was
+recovered, the beliefs that turned out wrong — lives in [`memory.md`](memory.md). Read that
+when something here looks arbitrary and you want to know why.
+
+**Updated:** 2026-10-26 · **Live version:** 0.2.x (viewer) · **Parked version:** 0.3.0 (editor)
 
 ---
 
@@ -594,21 +599,34 @@ taken from a real casualty rather than shapes our own writers produce.
 
 ## 8. Open items
 
-1. **Get the actual rollback error.** Everything else is guessing.
-2. Add an error boundary; relax the page-alignment throw. (`for-later`)
-3. Test against a real `export.pdb` and real CDJ hardware.
-4. Promote the current deployment (needs a human click).
-5. Set GitHub topics — see `docs/TOPICS.md`.
-6. Upload `public/og-image.png` as the GitHub social preview (separate setting; it does
+**Needs a human — an agent container cannot do these.** Both re-tested 2026-09-10 and
+blocked structurally, not by permissions. See `memory.md` §7 for the proof.
+
+1. **Enable Web Analytics** in the Vercel dashboard. `<Analytics />` is already mounted on
+   both branches, so beacons start counting the moment it is flipped — no redeploy.
+2. **Delete two dead branches**: `claude/rekordbox-playlist-export-7wndye` and
+   `zz-delete-probe`. The git proxy returns `HTTP 403` on every ref deletion.
+3. Set GitHub topics — see `docs/TOPICS.md`.
+4. Upload `public/og-image.png` as the GitHub social preview (a separate setting; it does
    not read `og:image`).
-7. **A corrupt USB is incoming.** A drive was pulled without ejecting and its
-   database is now corrupt; the user is supplying it. Do not write a repair
-   before seeing the image — see roadmap P8. Two things to do first regardless:
-   take a byte-for-byte image and work only on copies, and **check the backup
-   vaults**, because restore is already implemented and tested and may make the
-   whole repair moot.
-8. Wire OneLibrary into the app — the library layer is done, the load and commit
-   paths do not use it yet (roadmap P7).
+
+**Needs real hardware or a real failure to observe.**
+
+5. **Get the actual rollback error.** Everything in §2 is ranked guessing without it. This
+   is still the single biggest unknown in the project.
+6. Test against a real `export.pdb` and real CDJ hardware. Every current fixture is
+   synthetic and page-aligned by construction, which is structurally blind to the
+   alignment suspect.
+
+**Ordinary work, unblocked.**
+
+7. Add an error boundary; relax the page-alignment throw. (`for-later`, roadmap P0)
+8. Wire OneLibrary into the app — the library layer is done and tested, but the load and
+   commit paths still only look for `export.pdb` (roadmap P7).
+
+~~Promote the pinned deployment~~ — resolved; the Instant-Rollback pin is lifted and
+pushes auto-promote again. ~~A corrupt USB is incoming~~ — resolved; it was recovered in
+full, and the technique is shipped as **Attempt USB recovery**. See §1f and `memory.md` §3.
 
 ---
 
