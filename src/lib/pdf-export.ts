@@ -1,9 +1,12 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { Track } from '@/types/rekordbox';
 import { formatDuration, formatBpm } from '@/lib/rekordbox-parser';
 
-export function exportTracksToPdf(tracks: Track[], playlistName: string, hiddenColumns: string[] = []) {
+export async function exportTracksToPdf(tracks: Track[], playlistName: string, hiddenColumns: string[] = []) {
+  // jsPDF and autotable are a large chunk that most sessions never use, so they load on
+  // the first export rather than with the app. autoTable is called as a function, which
+  // needs no applyPlugin() — that is only for the doc.autoTable() form.
+  const [{ jsPDF }, { autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+
   const doc = new jsPDF();
   
   // Title

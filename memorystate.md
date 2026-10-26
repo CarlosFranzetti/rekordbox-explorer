@@ -21,7 +21,7 @@ when something here looks arbitrary and you want to know why.
 | **`for-later`** | The full playlist-**editor** release, parked and unmerged, kept in step with every `main` feature above |
 | **PR #9** | Merged, then rolled back. History intact. |
 
-Both branches build clean and pass their suites — `main` 103 tests, `for-later` 252.
+Both branches build clean and pass their suites — `main` 107 tests, `for-later` 252.
 Everything added since the rollback is now live.
 
 ### How we got here
@@ -503,8 +503,8 @@ console error or a real `export.pdb`.
   two orphan hooks) and 35 unused packages removed, including `@tanstack/react-query`
   (imported in `App.tsx` with zero `useQuery` calls anywhere) and the scaffold's
   component-tagger Vite plugin. Verified by transitive reachability from `main.tsx` plus the test entry
-  points, not by grep. The eager top-level `jspdf` import (~400 KB) is still there — see
-  the roadmap.
+  points, not by grep. The eager top-level `jspdf` import (~400 KB) was lazy-loaded
+  2026-10-26: the main chunk went 911 KB → 491 KB.
 
 ### Security audit — clean
 
@@ -576,6 +576,13 @@ user can supply the actual console error, most of this list collapses to one ite
 - **Vercel rollback pins the alias** — see §1.
 - **`main` is protected**; no force-pushes. Plan forward-only.
 - **All testing is synthetic.** No real `export.pdb`, no real CDJ. See §2.
+- **PDF export needs the network the first time it is used.** jsPDF is lazy-loaded, so a
+  DJ who opened the app at home and exports a setlist offline in the booth gets an error
+  where the eager bundle used to just work. Chrome also keeps a failed dynamic `import()`
+  for the life of the page (verified in Chromium: a retry after the network returned still
+  failed, a reload succeeded), so the failure toast says reload, not "try again". If that
+  trade is wrong, warm both chunks (`jspdf`, `jspdf-autotable`) once a library has loaded:
+  export then works offline and the ~400 KB still stays off first paint.
 
 ---
 

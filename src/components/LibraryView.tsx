@@ -9,6 +9,7 @@ import { SearchBar } from './SearchBar';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/useSettings';
+import { useToast } from '@/hooks/use-toast';
 import { exportTracksToPdf } from '@/lib/pdf-export';
 import { DriveCompatibilityBanner } from './DriveCompatibilityBanner';
 import type { RekordboxDatabase, Playlist, Track, ViewMode, SortColumn, SortDirection, FileEntry, LibraryPresence, DriveReport } from '@/types/rekordbox';
@@ -63,6 +64,7 @@ export function LibraryView({
     hiddenColumns,
     toggleColumnVisibility
   } = useSettings();
+  const { toast } = useToast();
 
   // Load file entries when switching to files mode
   useEffect(() => {
@@ -72,6 +74,23 @@ export function LibraryView({
   }, [viewMode, fileEntries.length, onLoadFileEntries]);
 
   const currentPlaylistName = selectedPlaylist?.name || 'All Tracks';
+
+  // The PDF libraries are fetched on first use, so unlike everything else in this view the
+  // export can fail on the network: a dropped connection, or a tab left open across a deploy.
+  // Chrome keeps a failed dynamic import for the life of the page, so a plain retry cannot
+  // succeed once the network is back — the message has to say reload, not "try again".
+  const handleExportPdf = () => {
+    exportTracksToPdf(filteredTracks, currentPlaylistName, hiddenColumns).catch((error) => {
+      console.error('PDF export failed:', error);
+      toast({
+        title: 'Could not create the PDF',
+        description:
+          'Your library is unchanged. The PDF tools load the first time you export, and they could not load. ' +
+          'Make sure you are online, then reload the page, open your library again and retry.',
+        variant: 'destructive',
+      });
+    });
+  };
 
   // The queue is whatever is on screen, so next/previous follow the sort and
   // filter the user is actually looking at.
@@ -125,7 +144,7 @@ export function LibraryView({
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => exportTracksToPdf(filteredTracks, currentPlaylistName, hiddenColumns)}
+                    onClick={handleExportPdf}
                     title="Export to PDF"
                   >
                     <FileDown className="h-4 w-4" />

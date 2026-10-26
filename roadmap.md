@@ -68,13 +68,13 @@ Nothing re-lands until these are done.
 | **Enable Web Analytics** — `<Analytics />` is mounted on both branches but the project has it off, so every beacon is dropped. Not doable from an agent container: `get_web_analytics` returns `404 Web Analytics not found` and the Vercel MCP surface has no toggle. One dashboard click, no redeploy needed. | *Vercel setting* |
 | **Delete the two dead branches** — `claude/rekordbox-playlist-export-7wndye` and `zz-delete-probe`. Blocked by the proxy's `HTTP 403` on ref deletion; see the note at the top of this file. | *repo setting* |
 | Deployment Protection — resolved, no action needed: production domain is public, all previews and branch aliases are SSO-gated and `noindex`. See `memorystate.md` §1b. | *Vercel setting* |
-| Bundle: `main`'s main chunk is 863 KB (280 KB gzipped), `for-later`'s is ~560 KB — code-split the dialogs | both |
+| Bundle: `main`'s main chunk is 491 KB (161 KB gzipped) now that jsPDF is lazy, `for-later`'s is ~560 KB — code-split the dialogs | both |
 | Web Worker for parsing (large libraries block the main thread) | `for-later` |
 | ~~Mobile layout is broken on `main`~~ — **not a bug.** The `Sheet` drawer on `for-later` was the regression and has been reverted: playlists and the full column set are visible on a phone, same layout as desktop. Pinned by `LibraryView.mobile.test.tsx`. | done 2026-08-27 |
 | ~~**`main` never got the column half of that decision**~~ — it kept a `MOBILE_COLUMNS` array collapsing a phone to Title/Artist/Album, and had no pinning test. Caught 2026-10-26 by rendering at 390px; fixed and pinned the same day. | done 2026-10-26 |
 | ~~**No musical Key column**~~ — done on `main` 2026-10-26: column after BPM, sorts numerically so Camelot runs 2A before 10A, hides/shows, and prints. **`for-later` still needs the table column, the sort case and the Settings toggle**; its exporters already carry key. | `for-later` |
 | Accessibility fixes (currently only on `for-later`) | consider backporting to `main` |
-| **Lazy-load `jspdf`** — still an eager top-level import, ~400 KB in the main chunk for a feature most sessions never use. `for-later` already uses a dynamic `import('jspdf')`. | `main` |
+| ~~**Lazy-load `jspdf`** — eager top-level import, ~400 KB in the main chunk for a feature most sessions never use~~ — done 2026-10-26: main chunk 911 KB → 491 KB; jsPDF and autotable load on the first export | `main` |
 | ~~Scaffold bloat on `main`: 42 dead modules, 35 unused packages, the scaffold's component-tagger plugin~~ — done 2026-08-14 | `main` |
 | Correct the Rescue-tab promise in `recovery-note.ts:115` — the on-drive note describes a drive-scan feature the tab does not implement | `for-later` |
 | Dead `rating > 255` check on a `getUint8` — impossible condition posing as validation | `main` |
