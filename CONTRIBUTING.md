@@ -1,5 +1,12 @@
 # Contributing
 
+## Before you change anything
+
+Read [`memorystate.md`](memorystate.md). Several things in this codebase look wrong until
+you know why they are that way — the hand-written AIFF decoder, the forgiving SQLite
+walker, the refusal to synthesise an `export.pdb`. [`memory.md`](memory.md) has the longer
+version, including what was tried first and failed.
+
 ## Setup
 
 ```bash

@@ -5,6 +5,11 @@ in the browser — no server, no uploads.
 
 ## ⚠️ Read `memorystate.md` first
 
+`memorystate.md` is the curated decision record. `memory.md` is the fuller dump behind it —
+the failed first attempts, the exact bytes of the drive that was recovered, and the
+reasoning that is easy to "optimise" away because the code no longer shows it. Read that
+one when something in this file or in `memorystate.md` looks arbitrary.
+
 Two branches, and **which one you are on changes everything**:
 
 | Branch | Contents | Deployed |

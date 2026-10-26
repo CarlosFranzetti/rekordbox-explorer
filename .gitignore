@@ -41,3 +41,7 @@ gha-creds-*.json
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Agent scratch space. `.claude/worktrees/` holds full checkouts of this repo —
+# committing it would duplicate the entire tree.
+.claude/

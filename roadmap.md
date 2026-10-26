@@ -7,8 +7,13 @@ Every item says **which branch it belongs on**. Two branches are live:
 | **`main`** | The stable **viewer** + current icon set. What production serves. | Production — builds and promotes automatically (the old Instant-Rollback pin is lifted; see `memorystate.md` §1) |
 | **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 252 tests. | Preview — auto-deploys to `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` |
 
-A third remote branch, `claude/rekordbox-playlist-export-7wndye`, is stale and superseded
-by these two. It can be deleted.
+Two other remote branches are dead weight: `claude/rekordbox-playlist-export-7wndye`
+(stale, superseded by these two) and `zz-delete-probe` (created to diagnose the deletion
+failure below). **Both need a human to delete them.** An agent in the cloud container
+cannot: the git proxy returns `HTTP 403` on every ref deletion, proven not to be
+branch-specific — pushing a brand-new branch succeeds and deleting that same branch seconds
+later fails identically. The GitHub MCP server has `create_branch` and `list_branches` but
+no delete-branch tool, and there is no `gh` CLI or direct API access. Re-tested 2026-09-10.
 
 **Rule:** anything touching the write path, the editor, backups, or the device registry
 goes on **`for-later`**. Only low-risk viewer work and docs go on **`main`**.
@@ -60,7 +65,8 @@ Nothing re-lands until these are done.
 | GitHub repo topics (`docs/TOPICS.md` has the command) | *repo setting* |
 | Upload `og-image.png` as GitHub social preview | *repo setting* |
 | ~~**Promote the pinned Vercel deployment**~~ — the Instant-Rollback pin is lifted and pushes auto-promote again; production verified current 2026-09-01 | done |
-| **Enable Web Analytics** — `<Analytics />` is mounted on both branches but the project has it off, so every beacon is dropped | *Vercel setting* |
+| **Enable Web Analytics** — `<Analytics />` is mounted on both branches but the project has it off, so every beacon is dropped. Not doable from an agent container: `get_web_analytics` returns `404 Web Analytics not found` and the Vercel MCP surface has no toggle. One dashboard click, no redeploy needed. | *Vercel setting* |
+| **Delete the two dead branches** — `claude/rekordbox-playlist-export-7wndye` and `zz-delete-probe`. Blocked by the proxy's `HTTP 403` on ref deletion; see the note at the top of this file. | *repo setting* |
 | Deployment Protection — resolved, no action needed: production domain is public, all previews and branch aliases are SSO-gated and `noindex`. See `memorystate.md` §1b. | *Vercel setting* |
 | Bundle: `main`'s main chunk is 863 KB (280 KB gzipped), `for-later`'s is ~560 KB — code-split the dialogs | both |
 | Web Worker for parsing (large libraries block the main thread) | `for-later` |

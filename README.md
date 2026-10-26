@@ -112,6 +112,7 @@ thing currently blocking the editor from shipping.
 | | |
 |---|---|
 | [`memorystate.md`](memorystate.md) | Current state, decisions with reasons, landmines. **Start here.** |
+| [`memory.md`](memory.md) | The full context dump behind it — what was tried, what failed first, which beliefs were wrong. Read when something above looks arbitrary. |
 | [`roadmap.md`](roadmap.md) | What's missing, and which branch each item belongs on |
 | [`database.md`](database.md) | Which Pioneer databases we read/write and why — the case for and against each |
 | [`research_playlistHelp.md`](research_playlistHelp.md) | Full `.pdb` format reference and the corruption analysis |
