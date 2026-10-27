@@ -5,7 +5,7 @@ Every item says **which branch it belongs on**. Two branches are live:
 | Branch | What it is | Deploys? |
 |---|---|---|
 | **`main`** | The stable **viewer** + current icon set. What production serves. | Production — builds and promotes automatically (the old Instant-Rollback pin is lifted; see `memorystate.md` §1) |
-| **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 253 tests. | Preview — auto-deploys to `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` |
+| **`for-later`** | The parked **editor** release: PDB writer, backups, commit pipeline, device registry, exports, parser rewrite, 264 tests. | Preview — auto-deploys to `rekordbox-explorer-git-for-later-carlosfranzettis-projects.vercel.app` |
 
 Two other remote branches are dead weight: `claude/rekordbox-playlist-export-7wndye`
 (stale, superseded by these two) and `zz-delete-probe` (created to diagnose the deletion
@@ -78,7 +78,7 @@ Nothing re-lands until these are done.
 | ~~Scaffold bloat on `main`: 42 dead modules, 35 unused packages, the scaffold's component-tagger plugin~~ — done 2026-08-14 | `main` |
 | Correct the Rescue-tab promise in `recovery-note.ts:115` — the on-drive note describes a drive-scan feature the tab does not implement | `for-later` |
 | ~~Dead `rating > 255` check on a `getUint8` — impossible condition posing as validation~~ — done 2026-10-26: removed, not replaced; reasoning in `memorystate.md` §2. `for-later` never had it. | done 2026-10-26 |
-| ~~**Year and Label headers do not sort on `main`**~~ — fixed 2026-10-27. Both were clickable `SortColumn`s with no case in the comparator, so `comparison` stayed 0: the arrow moved and the rows did not. Five tests now pin both directions and the missing-value case. | done 2026-10-27 |
+| ~~**Year and Label headers do not sort on `main`**~~ — fixed 2026-10-27. Both were clickable `SortColumn`s with no case in the comparator, so `comparison` stayed 0: the arrow moved and the rows did not. Five tests pin it on `main`. **`for-later` always sorted both correctly but still has no test for it** — the coverage did not port, because those tests mock `main`'s parser and use its render helper. | `for-later` |
 | ~~**Recovered XML carried the wrong star rating**~~ — confirmed from the code and fixed 2026-10-27. `recovery/xml.ts` wrote `Track.rating` verbatim; `export.pdb` already stores 0/51/…/255 but OneLibrary **and Engine DJ** store a plain 0-5, so a five-star track recovered from Engine reached rekordbox as zero stars — and Engine is what recovered the drive this feature was built for. Normalised at the XML boundary; the two encodings only overlap at zero, so it needs no knowledge of the source. `xml.test.ts` is new: the emitter had no test at all. | done 2026-10-27 |
 | ~~`tsconfig.*.tsbuildinfo` still tracked~~ — done 2026-08-14 | `main` |
 | ~~`console.log` per album row in the parser~~ — done 2026-08-14 | `main` |
