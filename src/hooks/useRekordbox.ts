@@ -490,6 +490,14 @@ export function useRekordbox() {
           // Numeric, so Camelot keys run 2A, 10A rather than 10A, 2A.
           comparison = a.key.localeCompare(b.key, undefined, { numeric: true });
           break;
+        // Both of these are optional on Track, and a missing one sorts first
+        // ascending — the same place an unanalysed BPM or an empty key lands.
+        case 'year':
+          comparison = (a.year ?? 0) - (b.year ?? 0);
+          break;
+        case 'label':
+          comparison = (a.label ?? '').localeCompare(b.label ?? '');
+          break;
       }
       
       return sortDirection === 'asc' ? comparison : -comparison;
