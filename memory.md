@@ -91,6 +91,33 @@ The clincher that these were the same library: every Engine track carries
 - **Score by playlists recovered, then tracks.** Playlists are the thing that cannot be
   rebuilt by re-scanning a folder of audio.
 
+### The rating scale, which nearly shipped wrong
+
+Found 2026-10-27, after the feature had been live for weeks. The three sources
+disagree about what `Track.rating` means:
+
+| Source | Scale |
+|---|---|
+| `export.pdb` | the byte encoding — 0, 51, 102, 153, 204, 255 |
+| OneLibrary | a plain 0-5 count |
+| Engine DJ | a plain 0-5 count |
+
+`recovery/xml.ts` wrote the number straight into the XML `Rating=` attribute,
+which expects the byte encoding. So a five-star track recovered from Engine
+arrived in rekordbox as `Rating="5"` — effectively unrated. **Engine is the
+source that recovered the real drive**, so this was the common path, not an edge
+case.
+
+Normalised at the XML boundary rather than in each reader, because the two
+encodings only ever overlap at zero: the byte form produces nothing between 1
+and 50, so anything at 5 or below is a star count. That makes the conversion
+exact without knowing which source a track came from, and a no-op for a library
+read from `export.pdb`.
+
+The emitter had **no test at all** before this — the sole output of the whole
+recovery feature, unguarded. `xml.test.ts` now covers the encoding, escaping,
+control-character stripping, path encoding and folder nesting.
+
 ### Two things deliberately not done
 
 **No synthesised `export.pdb`.** The user asked for fixed Pioneer files to write back to

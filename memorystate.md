@@ -21,7 +21,7 @@ when something here looks arbitrary and you want to know why.
 | **`for-later`** | The full playlist-**editor** release, parked and unmerged, kept in step with every `main` feature above |
 | **PR #9** | Merged, then rolled back. History intact. |
 
-Both branches build clean and pass their suites — `main` 107 tests, `for-later` 253.
+Both branches build clean and pass their suites — `main` 123 tests, `for-later` 264.
 Everything added since the rollback is now live.
 
 ### How we got here
@@ -601,7 +601,7 @@ user can supply the actual console error, most of this list collapses to one ite
   injection — `failWritesMatching`, `corruptWritesMatching`, `failMkdirMatching`. This is
   how "the drive corrupts a write mid-commit" became a unit test.
 
-253 tests across 16 suites. **Their blind spot: they only ever see files we generated.**
+264 tests across 17 suites. **Their blind spot: they only ever see files we generated.**
 That is why the recovery and audio suites matter — they reproduce failure shapes
 taken from a real casualty rather than shapes our own writers produce.
 

@@ -66,13 +66,39 @@ function location(volumeName: string, filePath: string): string {
   return `file://localhost/Volumes/${encodeURIComponent(volumeName)}/${encoded}`;
 }
 
+/**
+ * Normalise a star rating to the encoding rekordbox XML uses: 0, 51, 102, 153,
+ * 204, 255 for zero to five stars.
+ *
+ * The three sources recovery reads disagree. `export.pdb` stores the byte
+ * encoding already, while OneLibrary and Engine DJ both store a plain 0-5 count
+ * (`onelibrary/reader.ts` says so explicitly). Written through unchanged, a
+ * five-star track recovered from Engine reached the XML as `Rating="5"`, which
+ * rekordbox reads as zero stars — and Engine is the source that recovered the
+ * drive this feature was built for, so that was the common case, not the edge
+ * case.
+ *
+ * The two encodings are distinguishable because they only ever overlap at zero:
+ * the byte form produces nothing between 1 and 50, so anything at 5 or below is
+ * a star count. That makes this safe without knowing which source a track came
+ * from, and a no-op for a library read from `export.pdb`.
+ */
+function ratingAttribute(rating: number | undefined): number {
+  const value = rating || 0;
+  if (value <= 0) return 0;
+  // Rounded because a damaged or averaged source can hand us a fraction, and a
+  // non-integer attribute is not something rekordbox will read back.
+  if (value <= 5) return Math.round(value) * 51;
+  return Math.min(255, Math.round(value));
+}
+
 function trackElement(t: Track, volumeName: string): string {
   return (
     `    <TRACK TrackID="${t.id}" Name="${esc(t.title)}" Artist="${esc(t.artist)}"` +
     ` Album="${esc(t.album)}" Genre="${esc(t.genre)}" Kind="${kindOf(t.filePath)}"` +
     ` TotalTime="${Math.round(t.duration || 0)}"` +
     ` AverageBpm="${t.bpm ? t.bpm.toFixed(2) : ''}"` +
-    ` Year="${t.year ?? ''}" Rating="${t.rating || 0}"` +
+    ` Year="${t.year ?? ''}" Rating="${ratingAttribute(t.rating)}"` +
     ` Location="${location(volumeName, t.filePath)}"/>`
   );
 }
